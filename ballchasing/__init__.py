@@ -24,17 +24,17 @@
 """A library that provides a Python interface to the Ballchasing API."""
 from __future__ import absolute_import
 
-__author__       = 'Rolv-Arild Braaten'
-__email__        = 'rolv_arild@hotmail.com'
-__copyright__    = 'Copyright (c) 2020 Rolv-Arild Braaten'
-__license__      = 'Apache License 2.0'
-__version__      = '0.1.19'
-__url__          = 'https://github.com/Rolv-Arild/python-ballchasing'
-__download_url__ = 'https://pypi.python.org/pypi/python-ballchasing'
-__description__  = 'A Python wrapper around the Ballchasing API'
+__author__ = "Rolv-Arild Braaten"
+__email__ = "rolv_arild@hotmail.com"
+__copyright__ = "Copyright (c) 2020 Rolv-Arild Braaten"
+__license__ = "Apache License 2.0"
+__version__ = "0.1.19"
+__url__ = "https://github.com/Rolv-Arild/python-ballchasing"
+__download_url__ = "https://pypi.python.org/pypi/python-ballchasing"
+__description__ = "A Python wrapper around the Ballchasing API"
 
-from .api import Api                        # noqa
-from .constants import (                    # noqa
+from .api import Api  # noqa
+from .constants import (  # noqa
     Playlist,
     Rank,
     Season,
@@ -45,5 +45,5 @@ from .constants import (                    # noqa
     Visibility,
     PlayerIdentification,
     TeamIdentification,
-    Map
+    Map,
 )

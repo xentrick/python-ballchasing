@@ -38,7 +38,16 @@ def parse_replay(replay: dict):
     team_stats = [[], []]
     player_stats = []
 
-    for name, path, is_replay, is_team, is_player, type_, is_player_sum, dtype in stats_info:
+    for (
+        name,
+        path,
+        is_replay,
+        is_team,
+        is_player,
+        type_,
+        is_player_sum,
+        dtype,
+    ) in stats_info:
         if is_replay.lower() == "true":
             replay_stats.append(get_value(replay, path, dtype))
 

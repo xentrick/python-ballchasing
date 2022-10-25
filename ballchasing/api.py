@@ -1,12 +1,28 @@
 import os
 import time
 from datetime import datetime
-from typing import Optional, Iterator, Union, List
+from typing import Optional, Iterator, Union, List, Callable, AsyncIterator, Type
+from types import TracebackType
 
-from requests import sessions, Response, ConnectionError
+from aiohttp import ClientSession, TCPConnector, ClientResponse
+import asyncio
+import aiofiles
 
-from ballchasing.constants import GroupSortBy, SortDir, AnyPlaylist, AnyMap, AnySeason, AnyRank, AnyReplaySortBy, \
-    AnySortDir, AnyVisibility, AnyGroupSortBy, AnyPlayerIdentification, AnyTeamIdentification, AnyMatchResult
+from ballchasing.constants import (
+    GroupSortBy,
+    SortDir,
+    AnyPlaylist,
+    AnyMap,
+    AnySeason,
+    AnyRank,
+    AnyReplaySortBy,
+    AnySortDir,
+    AnyVisibility,
+    AnyGroupSortBy,
+    AnyPlayerIdentification,
+    AnyTeamIdentification,
+    AnyMatchResult,
+)
 from .util import rfc3339, replay_cols, team_cols, player_cols, parse_replay
 
 DEFAULT_URL = "https://ballchasing.com/api"
@@ -17,37 +33,51 @@ class Api:
     Class for communication with ballchasing.com API (https://ballchasing.com/doc/api)
     """
 
-    def __init__(self, auth_key: str, sleep_time_on_rate_limit: Optional[float] = None,
-                 print_on_rate_limit: bool = False, base_url=None, do_initial_ping=True):
+    def __init__(
+        self,
+        auth_key: str,
+        sleep_time_on_rate_limit: Optional[float] = None,
+        print_on_rate_limit: bool = False,
+        base_url: str = None,
+        max_connections: int = 0,
+    ):
         """
 
         :param auth_key: authentication key for API calls.
         :param sleep_time_on_rate_limit: seconds to wait after being rate limited.
                                          Default value is calculated depending on patron type.
         :param print_on_rate_limit: whether or not to print upon rate limits.
+        :param base_url: Ballchasing URL string
+        :param max_connections: Max concurrent requests at once (Default: 0)
         """
+
         self.auth_key = auth_key
-        self._session = sessions.Session()
+        headers = {"Authorization": self.auth_key}
+        self.max_connections = max_connections
+        self.connector = TCPConnector(limit=self.max_connections)
+        self._session = ClientSession(connector=self.connector, headers=headers)
+
         self.steam_name = None
         self.steam_id = None
         self.patron_type = None
         self.rate_limit_count = 0
         self.base_url = DEFAULT_URL if base_url is None else base_url
-        if do_initial_ping:
-            self.ping()
+
         if sleep_time_on_rate_limit is None:
             self.sleep_time_on_rate_limit = {
                 "regular": 3600 / 1000,
                 "gold": 3600 / 2000,
                 "diamond": 3600 / 5000,
                 "champion": 1 / 8,
-                "gc": 1 / 16
+                "gc": 1 / 16,
             }.get(self.patron_type or "regular")
         else:
             self.sleep_time_on_rate_limit = sleep_time_on_rate_limit
         self.print_on_rate_limit = print_on_rate_limit
 
-    def _request(self, url_or_endpoint: str, method: callable, **params) -> Response:
+    async def _request(
+        self, url_or_endpoint: str, method: Callable, **params
+    ) -> "ClientResponse":
         """
         Helper method for all requests.
 
@@ -56,32 +86,35 @@ class Api:
         :param params: parameters for GET request.
         :return: the request result.
         """
-        headers = {"Authorization": self.auth_key}
-        url = f"{self.base_url}{url_or_endpoint}" if url_or_endpoint.startswith("/") else url_or_endpoint
+        url = (
+            f"{self.base_url}{url_or_endpoint}"
+            if url_or_endpoint.startswith("/")
+            else url_or_endpoint
+        )
         retries = 0
         while True:
             try:
-                r = method(url, headers=headers, **params)
+                r = await method(url, **params)
                 retries = 0
             except ConnectionError as e:
                 print("Connection error, trying again in 10 seconds...")
-                time.sleep(10)
+                await asyncio.sleep(10)
                 retries += 1
                 if retries >= 10:
                     raise e
                 continue
-            if 200 <= r.status_code < 300:
+            if 200 <= r.status < 300:
                 return r
-            elif r.status_code == 429:
+            elif r.status == 429:
                 if self.print_on_rate_limit:
                     print(429, url, self.rate_limit_count)
                 if self.sleep_time_on_rate_limit:
-                    time.sleep(self.sleep_time_on_rate_limit)
+                    await asyncio.sleep(self.sleep_time_on_rate_limit)
                 self.rate_limit_count += 1
             else:
                 raise ValueError(r, r.json())
 
-    def ping(self):
+    async def ping(self):
         """
         Use this API to:
 
@@ -91,33 +124,36 @@ class Api:
         This method runs automatically at initialization and the steam name and id as well as patron type are stored.
         :return: ping response.
         """
-        result = self._request("/", self._session.get).json()
+        resp = await self._request("/", self._session.get)
+        result = await resp.json()
         self.steam_name = result["name"]
         self.steam_id = result["steam_id"]
         self.patron_type = result["type"]
         return result
 
-    def get_replays(self, title: Optional[str] = None,
-                    player_name: Optional[Union[str, List[str]]] = None,
-                    player_id: Optional[Union[str, List[str]]] = None,
-                    playlist: Optional[Union[AnyPlaylist, List[AnyPlaylist]]] = None,
-                    season: Optional[Union[AnySeason, List[AnySeason]]] = None,
-                    match_result: Optional[Union[AnyMatchResult, List[AnyMatchResult]]] = None,
-                    min_rank: Optional[AnyRank] = None,
-                    max_rank: Optional[AnyRank] = None,
-                    pro: Optional[bool] = None,
-                    uploader: Optional[str] = None,
-                    group_id: Optional[Union[str, List[str]]] = None,
-                    map_id: Optional[Union[AnyMap, List[AnyMap]]] = None,
-                    created_before: Optional[Union[str, datetime]] = None,
-                    created_after: Optional[Union[str, datetime]] = None,
-                    replay_after: Optional[Union[str, datetime]] = None,
-                    replay_before: Optional[Union[str, datetime]] = None,
-                    count: int = 150,
-                    sort_by: Optional[AnyReplaySortBy] = None,
-                    sort_dir: Union[AnySortDir] = SortDir.DESCENDING,
-                    deep: bool = False
-                    ) -> Iterator[dict]:
+    async def get_replays(
+        self,
+        title: Optional[str] = None,
+        player_name: Optional[Union[str, List[str]]] = None,
+        player_id: Optional[Union[str, List[str]]] = None,
+        playlist: Optional[Union[AnyPlaylist, List[AnyPlaylist]]] = None,
+        season: Optional[Union[AnySeason, List[AnySeason]]] = None,
+        match_result: Optional[Union[AnyMatchResult, List[AnyMatchResult]]] = None,
+        min_rank: Optional[AnyRank] = None,
+        max_rank: Optional[AnyRank] = None,
+        pro: Optional[bool] = None,
+        uploader: Optional[str] = None,
+        group_id: Optional[Union[str, List[str]]] = None,
+        map_id: Optional[Union[AnyMap, List[AnyMap]]] = None,
+        created_before: Optional[Union[str, datetime]] = None,
+        created_after: Optional[Union[str, datetime]] = None,
+        replay_after: Optional[Union[str, datetime]] = None,
+        replay_before: Optional[Union[str, datetime]] = None,
+        count: int = 150,
+        sort_by: Optional[AnyReplaySortBy] = None,
+        sort_dir: Union[AnySortDir] = SortDir.DESCENDING,
+        deep: bool = False,
+    ) -> AsyncIterator[dict]:
         """
         This endpoint lets you filter and retrieve replays. The implementation returns an iterator.
 
@@ -153,23 +189,49 @@ class Api:
         :return: an iterator over the replays returned by the API.
         """
         url = f"{self.base_url}/replays"
-        params = {"title": title, "player-name": player_name, "player-id": player_id, "playlist": playlist,
-                  "season": season, "match-result": match_result, "min-rank": min_rank, "max-rank": max_rank,
-                  "pro": pro, "uploader": uploader, "group": group_id, "map": map_id,
-                  "created-before": rfc3339(created_before), "created-after": rfc3339(created_after),
-                  "replay-date-after": rfc3339(replay_after), "replay-date-before": rfc3339(replay_before),
-                  "sort-by": sort_by, "sort-dir": sort_dir}
+        params = {
+            "title": title,
+            "player-name": player_name,
+            "player-id": player_id,
+            "playlist": playlist,
+            "season": season,
+            "match-result": match_result,
+            "min-rank": min_rank,
+            "max-rank": max_rank,
+            "pro": pro,
+            "uploader": uploader,
+            "group": group_id,
+            "map": map_id,
+            "created-before": rfc3339(created_before),
+            "created-after": rfc3339(created_after),
+            "replay-date-after": rfc3339(replay_after),
+            "replay-date-before": rfc3339(replay_before),
+            "sort-by": sort_by,
+            "sort-dir": sort_dir,
+        }
+        # Remove all NoneType parameters.
+        params = dict((k, v) for k, v in params.items() if v is not None)
+
         left = count
         while left > 0:
             request_count = min(left, 200)
             params["count"] = request_count
-            d = self._request(url, self._session.get, params=params).json()
+            resp = await self._request(url, self._session.get, params=params)
+            d = await resp.json()
+            print(d)
 
             batch = d["list"][:request_count]
             if not deep:
-                yield from batch
+                #yield from batch
+                #async for r in batch:
+                for r in batch:
+                    yield r
             else:
-                yield from (self.get_replay(r["id"]) for r in batch)
+                #yield from (self.get_replay(r["id"]) for r in batch)
+                #async for r in batch:
+                for r in batch:
+                    replay = await self.get_replay(r["id"])
+                    yield replay
 
             if "next" not in d:
                 break
@@ -178,25 +240,28 @@ class Api:
             left -= len(batch)
             params = {}
 
-    def get_replay(self, replay_id: str) -> dict:
+    async def get_replay(self, replay_id: str) -> dict:
         """
         Retrieve a given replay’s details and stats.
 
         :param replay_id: the replay id.
         :return: the result of the GET request.
         """
-        return self._request(f"/replays/{replay_id}", self._session.get).json()
+        r = await self._request(f"/replays/{replay_id}", self._session.get)
+        return await r.json()
 
-    def patch_replay(self, replay_id: str, **params) -> None:
+    async def patch_replay(self, replay_id: str, **params) -> None:
         """
         This endpoint can patch one or more fields of the specified replay
 
         :param replay_id: the replay id.
         :param params: parameters for the PATCH request.
         """
-        self._request(f"/replays/{replay_id}", self._session.patch, json=params)
+        await self._request(f"/replays/{replay_id}", self._session.patch, json=params)
 
-    def upload_replay(self, replay_file, visibility: Optional[AnyVisibility] = None) -> dict:
+    async def upload_replay(
+        self, replay_file, visibility: Optional[AnyVisibility] = None
+    ) -> dict:
         """
         Use this API to upload a replay file to ballchasing.com.
 
@@ -204,27 +269,34 @@ class Api:
         :param visibility: to set the visibility of the uploaded replay.
         :return: the result of the POST request.
         """
-        return self._request(f"/v2/upload", self._session.post, files={"file": replay_file},
-                             params={"visibility": visibility}).json()
+        r = await self._request(
+            f"/v2/upload",
+            self._session.post,
+            files={"file": replay_file},
+            params={"visibility": visibility},
+        )
+        return await r.json()
 
-    def delete_replay(self, replay_id: str) -> None:
+    async def delete_replay(self, replay_id: str) -> None:
         """
         This endpoint deletes the specified replay.
         WARNING: This operation is permanent and undoable.
 
         :param replay_id: the replay id.
         """
-        self._request(f"/replays/{replay_id}", self._session.delete)
+        await self._request(f"/replays/{replay_id}", self._session.delete)
 
-    def get_groups(self, name: Optional[str] = None,
-                   creator: Optional[str] = None,
-                   group: Optional[str] = None,
-                   created_before: Optional[Union[str, datetime]] = None,
-                   created_after: Optional[Union[str, datetime]] = None,
-                   count: int = 200,
-                   sort_by: Union[AnyGroupSortBy] = GroupSortBy.CREATED,
-                   sort_dir: Union[AnySortDir] = SortDir.DESCENDING
-                   ) -> Iterator[dict]:
+    async def get_groups(
+        self,
+        name: Optional[str] = None,
+        creator: Optional[str] = None,
+        group: Optional[str] = None,
+        created_before: Optional[Union[str, datetime]] = None,
+        created_after: Optional[Union[str, datetime]] = None,
+        count: int = 200,
+        sort_by: Union[AnyGroupSortBy] = GroupSortBy.CREATED,
+        sort_dir: Union[AnySortDir] = SortDir.DESCENDING,
+    ) -> AsyncIterator[dict]:
         """
         This endpoint lets you filter and retrieve replay groups.
 
@@ -243,17 +315,28 @@ class Api:
         :return: an iterator over the groups returned by the API.
         """
         url = f"{self.base_url}/groups/"
-        params = {"name": name, "creator": creator, "group": group, "created-before": rfc3339(created_before),
-                  "created-after": rfc3339(created_after), "sort-by": sort_by, "sort-dir": sort_dir}
+        params = {
+            "name": name,
+            "creator": creator,
+            "group": group,
+            "created-before": rfc3339(created_before),
+            "created-after": rfc3339(created_after),
+            "sort-by": sort_by,
+            "sort-dir": sort_dir,
+        }
+        params = dict((k, v) for k, v in params.items() if v is not None)
 
         left = count
         while left > 0:
             request_count = min(left, 200)
             params["count"] = request_count
-            d = self._request(url, self._session.get, params=params).json()
+            resp = await self._request(url, self._session.get, params=params)
+            d = await resp.json()
 
             batch = d["list"][:request_count]
-            yield from batch
+            # yield from batch
+            for r in batch:
+                yield r
 
             if "next" not in d:
                 break
@@ -262,12 +345,13 @@ class Api:
             left -= len(batch)
             params = {}
 
-    def create_group(self,
-                     name: str,
-                     player_identification: Union[AnyPlayerIdentification],
-                     team_identification: Union[AnyTeamIdentification],
-                     parent: Optional[str] = None
-                     ) -> dict:
+    async def create_group(
+        self,
+        name: str,
+        player_identification: Union[AnyPlayerIdentification],
+        team_identification: Union[AnyTeamIdentification],
+        parent: Optional[str] = None,
+    ) -> dict:
         """
         Use this API to create a new replay group.
 
@@ -283,38 +367,46 @@ class Api:
         :param parent: if set,the new group will be created as a child of the specified group
         :return: the result of the POST request.
         """
-        json = {"name": name, "player_identification": player_identification,
-                "team_identification": team_identification, "parent": parent}
-        return self._request(f"/groups", self._session.post, json=json).json()
+        json = {
+            "name": name,
+            "player_identification": player_identification,
+            "team_identification": team_identification,
+            "parent": parent,
+        }
+        r = await self._request(f"/groups", self._session.post, json=json)
+        return await r.json()
 
-    def get_group(self, group_id: str) -> dict:
+    async def get_group(self, group_id: str) -> dict:
         """
         This endpoint retrieves a specific replay group info and stats given its id.
 
         :param group_id: the group id.
         :return: the group info with stats.
         """
-        return self._request(f"/groups/{group_id}", self._session.get).json()
+        r = await self._request(f"/groups/{group_id}", self._session.get)
+        return await r.json()
 
-    def patch_group(self, group_id: str, **params) -> None:
+    async def patch_group(self, group_id: str, **params) -> None:
         """
         This endpoint can patch one or more fields of the specified group.
 
         :param group_id: the group id
         :param params: parameters for the PATCH request.
         """
-        self._request(f"/groups/{group_id}", self._session.patch, json=params)
+        await self._request(f"/groups/{group_id}", self._session.patch, json=params)
 
-    def delete_group(self, group_id: str) -> None:
+    async def delete_group(self, group_id: str) -> None:
         """
         This endpoint deletes the specified group.
         WARNING: This operation is permanent and undoable.
 
         :param group_id: the group id.
         """
-        self._request(f"/groups/{group_id}", self._session.delete)
+        await self._request(f"/groups/{group_id}", self._session.delete)
 
-    def get_group_replays(self, group_id: str, deep: bool = False) -> Iterator[dict]:
+    async def get_group_replays(
+        self, group_id: str, deep: bool = False
+    ) -> AsyncIterator[dict]:
         """
         Finds all replays in a group, including child groups.
 
@@ -322,26 +414,25 @@ class Api:
         :param deep: whether or not to get full stats for each replay (will be much slower).
         :return: an iterator over all the replays in the group.
         """
-        child_groups = self.get_groups(group=group_id)
-        for child in child_groups:
-            for replay in self.get_group_replays(child["id"], deep):
+        #child_groups = await self.get_groups(group=group_id)
+        async for child in self.get_groups(group=group_id):
+            async for replay in self.get_group_replays(child["id"], deep):
                 yield replay
-        for replay in self.get_replays(group_id=group_id, deep=deep):
+        async for replay in self.get_replays(group_id=group_id, deep=deep):
             yield replay
 
-    def download_replay(self, replay_id: str, folder: str):
+    async def download_replay(self, replay_id: str, folder: str):
         """
         Download a replay file.
 
         :param replay_id: the replay id.
         :param folder: the folder to download into.
         """
-        r = self._request(f"/replays/{replay_id}/file", self._session.get)
-        with open(f"{folder}/{replay_id}.replay", "wb") as f:
-            for ch in r:
-                f.write(ch)
+        r = await self._request(f"/replays/{replay_id}/file", self._session.get)
+        async with aiofiles.open(f"{folder}/{replay_id}.replay", mode="wb") as fd:
+            await fd.write(await fd.read())
 
-    def download_group(self, group_id: str, folder: str, recursive=True):
+    async def download_group(self, group_id: str, folder: str, recursive=True):
         """
         Download an entire group.
 
@@ -352,28 +443,30 @@ class Api:
         folder = os.path.join(folder, group_id)
         if recursive:
             os.makedirs(folder, exist_ok=True)
-            for child_group in self.get_groups(group=group_id):
-                self.download_group(child_group["id"], folder, True)
-            for replay in self.get_replays(group_id=group_id):
-                self.download_replay(replay["id"], folder)
+            async for child_group in self.get_groups(group=group_id):
+                await self.download_group(child_group["id"], folder, True)
+            async for replay in self.get_replays(group_id=group_id):
+                await self.download_replay(replay["id"], folder)
         else:
-            for replay in self.get_group_replays(group_id):
-                self.download_replay(replay["id"], folder)
+            async for replay in self.get_group_replays(group_id):
+                await self.download_replay(replay["id"], folder)
 
-    def get_maps(self):
+    async def get_maps(self):
         """
         Use this API to get the list of map codes to map names (map as in stadium).
         """
-        res = self._request("/maps", self._session.get).json()
+        res = await self._request("/maps", self._session.get).json()
         return res
 
-    def generate_tsvs(self, replays: Iterator[Union[dict, str]],
-                      path_name: str,
-                      player_suffix: Optional[str] = "-players.tsv",
-                      team_suffix: Optional[str] = "-teams.tsv",
-                      replay_suffix: Optional[str] = "-replays.tsv",
-                      sep="\t",
-                      ):
+    async def generate_tsvs(
+        self,
+        replays: Iterator[Union[dict, str]],
+        path_name: str,
+        player_suffix: Optional[str] = "-players.tsv",
+        team_suffix: Optional[str] = "-teams.tsv",
+        replay_suffix: Optional[str] = "-replays.tsv",
+        sep="\t",
+    ):
         """
         Generates tsv files for players, teams and replay info.
 
@@ -401,7 +494,7 @@ class Api:
 
         for replay in replays:
             if isinstance(replay, str):
-                replay = self.get_replay(replay)
+                replay = await self.get_replay(replay)
             for kind, values in parse_replay(replay):
                 values = [str(v) for v in values]
                 if kind == "replay" and replay_file is not None:
@@ -412,31 +505,55 @@ class Api:
                     player_file.write(sep.join(values) + "\n")
 
     def __str__(self):
-        return f"BallchasingApi[key={self.auth_key},name={self.steam_name}," \
-               f"steam_id={self.steam_id},type={self.patron_type}]"
+        return (
+            f"BallchasingApi[key={self.auth_key},name={self.steam_name},"
+            f"steam_id={self.steam_id},type={self.patron_type}]"
+        )
+
+    async def close(self) -> None:
+        if self._session.connector is not None:
+            await self._session.connector.close()
+            self._session = None
+
+    async def __aenter__(self) -> "Api":
+        return self
+
+    async def __aexit__(
+        self,
+        exception_type: Optional[type[BaseException]],
+        exception: Optional[BaseException],
+        exception_traceback: Optional[TracebackType],
+    ) -> None:
+        await self.close()
 
 
-if __name__ == '__main__':
-    # Basic initial tests
-    import sys
+# if __name__ == "__main__":
+#     # Basic initial tests
+#     import sys
 
-    token = sys.argv[1]
-    api = Api(token)
-    print(api)
-    # api.get_replays(season="123")
-    # api.delete_replay("a22a8c81-fadd-4453-914e-ae54c2b8391f")
-    upload_response = api.upload_replay(open("4E2B22344F748C6EB4922DB8CC8AC282.replay", "rb"))
-    replays_response = api.get_replays()
-    replay_response = api.get_replay(next(replays_response)["id"])
+#     token = sys.argv[1]
+#     api = Api(token)
+#     print(api)
+#     # api.get_replays(season="123")
+#     # api.delete_replay("a22a8c81-fadd-4453-914e-ae54c2b8391f")
+#     upload_response = api.upload_replay(
+#         open("4E2B22344F748C6EB4922DB8CC8AC282.replay", "rb")
+#     )
+#     replays_response = api.get_replays()
+#     replay_response = api.get_replay(next(replays_response)["id"])
 
-    groups_response = api.get_groups()
-    group_response = api.get_group(next(groups_response)["id"])
+#     groups_response = api.get_groups()
+#     group_response = api.get_group(next(groups_response)["id"])
 
-    create_group_response = api.create_group(f"test-{time.time()}", "by-id", "by-distinct-players")
-    api.patch_group(create_group_response["id"], team_identification="by-player-clusters")
+#     create_group_response = api.create_group(
+#         f"test-{time.time()}", "by-id", "by-distinct-players"
+#     )
+#     api.patch_group(
+#         create_group_response["id"], team_identification="by-player-clusters"
+#     )
 
-    api.patch_replay(upload_response["id"], group=create_group_response["id"])
+#     api.patch_replay(upload_response["id"], group=create_group_response["id"])
 
-    api.delete_group(create_group_response["id"])
-    api.delete_replay(upload_response["id"])
-    print("Nice")
+#     api.delete_group(create_group_response["id"])
+#     api.delete_replay(upload_response["id"])
+#     print("Nice")
