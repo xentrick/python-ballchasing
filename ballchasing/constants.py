@@ -1,4 +1,5 @@
 from typing import Literal, get_args
+from enum import Enum
 
 AnyPlaylist = Literal[
     "unranked-duels",
@@ -147,6 +148,10 @@ AnySeason = Literal[
     "f3",
     "f4",
     "f5",
+    "f6",
+    "f7",
+    "f8",
+    "f9",
 ]
 
 
@@ -171,6 +176,10 @@ class Season:
         SEASON_3_FTP,
         SEASON_4_FTP,
         SEASON_5_FTP,
+        SEASON_6_FTP,
+        SEASON_7_FTP,
+        SEASON_8_FTP,
+        SEASON_9_FTP,
     ) = get_args(AnySeason)
     PAY_TO_PLAY = (
         SEASON_1,
@@ -194,6 +203,10 @@ class Season:
         SEASON_3_FTP,
         SEASON_4_FTP,
         SEASON_5_FTP,
+        SEASON_6_FTP,
+        SEASON_7_FTP,
+        SEASON_8_FTP,
+        SEASON_9_FTP,
     )
 
 

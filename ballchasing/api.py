@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional, Iterator, Union, List, Callable, AsyncIterator, Type
 from types import TracebackType
 
-from aiohttp import ClientSession, TCPConnector, ClientResponse
+from aiohttp import ClientSession, TCPConnector, ClientResponse, FormData
 import asyncio
 import aiofiles
 
@@ -129,6 +129,15 @@ class Api:
         self.steam_name = result["name"]
         self.steam_id = result["steam_id"]
         self.patron_type = result["type"]
+
+        self.sleep_time_on_rate_limit = {
+            "regular": 3600 / 1000,
+            "gold": 3600 / 2000,
+            "diamond": 3600 / 5000,
+            "champion": 1 / 8,
+            "gc": 1 / 16,
+        }.get(self.patron_type or "regular")
+
         return result
 
     async def get_replays(
@@ -151,7 +160,7 @@ class Api:
         replay_before: Optional[Union[str, datetime]] = None,
         count: int = 150,
         sort_by: Optional[AnyReplaySortBy] = None,
-        sort_dir: Union[AnySortDir] = SortDir.DESCENDING,
+        sort_dir: AnySortDir = SortDir.DESCENDING,
         deep: bool = False,
     ) -> AsyncIterator[dict]:
         """
@@ -222,13 +231,13 @@ class Api:
 
             batch = d["list"][:request_count]
             if not deep:
-                #yield from batch
-                #async for r in batch:
+                # yield from batch
+                # async for r in batch:
                 for r in batch:
                     yield r
             else:
-                #yield from (self.get_replay(r["id"]) for r in batch)
-                #async for r in batch:
+                # yield from (self.get_replay(r["id"]) for r in batch)
+                # async for r in batch:
                 for r in batch:
                     replay = await self.get_replay(r["id"])
                     yield replay
@@ -260,19 +269,30 @@ class Api:
         await self._request(f"/replays/{replay_id}", self._session.patch, json=params)
 
     async def upload_replay(
-        self, replay_file, visibility: Optional[AnyVisibility] = None
+        self,
+        replay_file: str,
+        visibility: Optional[AnyVisibility] = None,
+        group: Optional[str] = None,
     ) -> dict:
         """
         Use this API to upload a replay file to ballchasing.com.
 
         :param replay_file: replay file to upload.
         :param visibility: to set the visibility of the uploaded replay.
+        :param group: assign replay to a specific group id
         :return: the result of the POST request.
         """
+        files = FormData()
+        files.add_field(
+            'file',
+            open(replay_file, 'rb'),
+            filename=replay_file,
+        )
+
         r = await self._request(
             f"/v2/upload",
             self._session.post,
-            files={"file": replay_file},
+            data=files,
             params={"visibility": visibility},
         )
         return await r.json()
@@ -294,8 +314,8 @@ class Api:
         created_before: Optional[Union[str, datetime]] = None,
         created_after: Optional[Union[str, datetime]] = None,
         count: int = 200,
-        sort_by: Union[AnyGroupSortBy] = GroupSortBy.CREATED,
-        sort_dir: Union[AnySortDir] = SortDir.DESCENDING,
+        sort_by: AnyGroupSortBy = GroupSortBy.CREATED,
+        sort_dir: AnySortDir = SortDir.DESCENDING,
     ) -> AsyncIterator[dict]:
         """
         This endpoint lets you filter and retrieve replay groups.
@@ -348,8 +368,8 @@ class Api:
     async def create_group(
         self,
         name: str,
-        player_identification: Union[AnyPlayerIdentification],
-        team_identification: Union[AnyTeamIdentification],
+        player_identification: AnyPlayerIdentification,
+        team_identification: AnyTeamIdentification,
         parent: Optional[str] = None,
     ) -> dict:
         """
@@ -414,7 +434,7 @@ class Api:
         :param deep: whether or not to get full stats for each replay (will be much slower).
         :return: an iterator over all the replays in the group.
         """
-        #child_groups = await self.get_groups(group=group_id)
+        # child_groups = await self.get_groups(group=group_id)
         async for child in self.get_groups(group=group_id):
             async for replay in self.get_group_replays(child["id"], deep):
                 yield replay
