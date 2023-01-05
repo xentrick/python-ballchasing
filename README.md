@@ -1,7 +1,8 @@
-# Python Ballchasing
+# Python Ballchasing (Async)
+
 Python wrapper for the ballchasing.com API. 
 
-Note that project is still early in development and is subject to change.
+This project was forked from https://github.com/Rolv-Arild/python-ballchasing and modified to be asynchronous. All credit goes to Rolv-Alrid, I simply modified how it's used.
 
 # Import change notes
 
