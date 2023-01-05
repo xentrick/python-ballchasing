@@ -22,6 +22,7 @@ from ballchasing.constants import (
     AnyPlayerIdentification,
     AnyTeamIdentification,
     AnyMatchResult,
+    Visibility,
 )
 from .util import rfc3339, replay_cols, team_cols, player_cols, parse_replay
 
@@ -271,30 +272,31 @@ class Api:
     async def upload_replay(
         self,
         replay_file: str,
-        visibility: Optional[AnyVisibility] = None,
+        visibility: Optional[AnyVisibility] = Visibility.PUBLIC,
         group: Optional[str] = None,
     ) -> dict:
         """
         Use this API to upload a replay file to ballchasing.com.
 
         :param replay_file: replay file to upload.
-        :param visibility: to set the visibility of the uploaded replay.
+        :param visibility: to set the visibility of the uploaded replay. (Default: Public)
         :param group: assign replay to a specific group id
         :return: the result of the POST request.
         """
-        files = FormData()
-        files.add_field(
-            'file',
-            open(replay_file, 'rb'),
-            filename=replay_file,
-        )
+        with open(replay_file, "rb") as fd:
+            files = FormData()
+            files.add_field(
+                "file",
+                open(replay_file, "rb"),
+                filename=replay_file,
+            )
 
-        r = await self._request(
-            f"/v2/upload",
-            self._session.post,
-            data=files,
-            params={"visibility": visibility},
-        )
+            r = await self._request(
+                f"/v2/upload",
+                self._session.post,
+                data=files,
+                params={"visibility": visibility, "group": group},
+            )
         return await r.json()
 
     async def delete_replay(self, replay_id: str) -> None:
@@ -450,7 +452,7 @@ class Api:
         """
         r = await self._request(f"/replays/{replay_id}/file", self._session.get)
         async with aiofiles.open(f"{folder}/{replay_id}.replay", mode="wb") as fd:
-            await fd.write(await fd.read())
+            await fd.write(await r.read())
 
     async def download_group(self, group_id: str, folder: str, recursive=True):
         """
@@ -475,8 +477,8 @@ class Api:
         """
         Use this API to get the list of map codes to map names (map as in stadium).
         """
-        res = await self._request("/maps", self._session.get).json()
-        return res
+        res = await self._request("/maps", self._session.get)
+        return await res.json()
 
     async def generate_tsvs(
         self,
@@ -499,30 +501,34 @@ class Api:
         """
         player_file = None
         if player_suffix is not None:
-            player_file = open(path_name + player_suffix, "w")
-            player_file.write(sep.join(player_cols) + "\n")
+            player_file = await aiofiles.open(f"{path_name}{player_suffix}", "w")
+            await player_file.write(sep.join(player_cols) + "\n")
 
         team_file = None
         if team_suffix is not None:
-            team_file = open(path_name + team_suffix, "w")
-            team_file.write(sep.join(team_cols) + "\n")
+            team_file = await aiofiles.open(f"{path_name}{team_suffix}", "w")
+            await team_file.write(sep.join(team_cols) + "\n")
 
         replay_file = None
         if replay_suffix is not None:
-            replay_file = open(path_name + replay_suffix, "w")
-            replay_file.write(sep.join(replay_cols) + "\n")
+            replay_file = await aiofiles.open(f"{path_name}{replay_suffix}", "w")
+            await replay_file.write(sep.join(replay_cols) + "\n")
 
         for replay in replays:
             if isinstance(replay, str):
-                replay = await self.get_replay(replay)
-            for kind, values in parse_replay(replay):
+                rdata = await self.get_replay(replay)
+            for kind, values in parse_replay(rdata):
                 values = [str(v) for v in values]
                 if kind == "replay" and replay_file is not None:
-                    replay_file.write(sep.join(values) + "\n")
+                    await replay_file.write(sep.join(values) + "\n")
                 elif kind == "team" and team_file is not None:
-                    team_file.write(sep.join(values) + "\n")
+                    await team_file.write(sep.join(values) + "\n")
                 elif kind == "player" and player_file is not None:
-                    player_file.write(sep.join(values) + "\n")
+                    await player_file.write(sep.join(values) + "\n")
+
+        player_file.close()
+        team_file.close()
+        replay_file.close()
 
     def __str__(self):
         return (

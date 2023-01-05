@@ -23,9 +23,9 @@ async def gather(result):
     async for r in result: final.append(r)
     return final
 
-result = await bapi.get_replays(...)
+result = bapi.get_replays(...)
 
-result_list = gather(result)
+result_list = await gather(result)
 ```
 
 `upload_replay()` has been updated to handle multiple replay files. Accepts a single string or a list of strings containing the path to a replay file.
