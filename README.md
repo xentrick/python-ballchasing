@@ -28,15 +28,6 @@ result = bapi.get_replays(...)
 result_list = await gather(result)
 ```
 
-`upload_replay()` has been updated to handle multiple replay files. Accepts a single string or a list of strings containing the path to a replay file.
-
-```
-result = await bapi.upload_replay('test.replay')
-
-result = await bapi.upload_replay(['test.replay', 'greatgame.replay'])
-```
-
-
 
 # API
 The API is exposed via the `ballchasing.Api` class.
