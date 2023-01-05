@@ -6,6 +6,20 @@ This project was forked from https://github.com/Rolv-Arild/python-ballchasing an
 
 # Import change notes
 
+## Ping and Patreon Level
+
+Since we can't call ping to update the Patreon level used for rate limiting in `__ini__` it has to be called manually. I'm not actually sure if this can be accomplished in another way and open to suggestions.
+
+For now it is recommend that you manually specify the limit for your API key level or ping manually.
+
+```
+bapi = ballchasing.Api(..., sleep_time_on_rate_limit=3)
+
+bapi = ballchasing.Api(...)
+await bapi.ping()
+```
+## AsyncIterators
+
 Querying multiple replays will result in an `AsyncIterator`. To handle this you can iterate the data like so.
 
 ```
