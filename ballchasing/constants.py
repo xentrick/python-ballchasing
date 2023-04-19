@@ -152,6 +152,7 @@ AnySeason = Literal[
     "f7",
     "f8",
     "f9",
+    "f10",
 ]
 
 
@@ -180,6 +181,7 @@ class Season:
         SEASON_7_FTP,
         SEASON_8_FTP,
         SEASON_9_FTP,
+        SEASON_10_FTP,
     ) = get_args(AnySeason)
     PAY_TO_PLAY = (
         SEASON_1,
@@ -207,6 +209,7 @@ class Season:
         SEASON_7_FTP,
         SEASON_8_FTP,
         SEASON_9_FTP,
+        SEASON_10_FTP,
     )
 
 

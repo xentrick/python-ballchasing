@@ -1,5 +1,6 @@
 import os
 import time
+import logging
 from datetime import datetime
 from typing import Optional, Iterator, Union, List, Callable, AsyncIterator, Type
 from types import TracebackType
@@ -25,6 +26,8 @@ from ballchasing.constants import (
     Visibility,
 )
 from .util import rfc3339, replay_cols, team_cols, player_cols, parse_replay
+
+log = logging.getLogger("ballchasing")
 
 DEFAULT_URL = "https://ballchasing.com/api"
 
@@ -98,7 +101,7 @@ class Api:
                 r = await method(url, **params)
                 retries = 0
             except ConnectionError as e:
-                print("Connection error, trying again in 10 seconds...")
+                log.error("Connection error, trying again in 10 seconds...")
                 await asyncio.sleep(10)
                 retries += 1
                 if retries >= 10:
@@ -108,12 +111,12 @@ class Api:
                 return r
             elif r.status == 429:
                 if self.print_on_rate_limit:
-                    print(429, url, self.rate_limit_count)
+                    log.warning(f"429 {url} {self.rate_limit_count}")
                 if self.sleep_time_on_rate_limit:
                     await asyncio.sleep(self.sleep_time_on_rate_limit)
                 self.rate_limit_count += 1
             else:
-                raise ValueError(r, r.json())
+                raise ValueError(r)
 
     async def ping(self):
         """
@@ -228,7 +231,6 @@ class Api:
             params["count"] = request_count
             resp = await self._request(url, self._session.get, params=params)
             d = await resp.json()
-            print(d)
 
             batch = d["list"][:request_count]
             if not deep:
@@ -298,6 +300,39 @@ class Api:
                 params={"visibility": visibility, "group": group},
             )
         return await r.json()
+
+    async def upload_replay_from_bytes(
+        self,
+        name: str,
+        replay_data: bytes,
+        visibility: Optional[AnyVisibility] = Visibility.PUBLIC,
+        group: Optional[str] = None,
+    ) -> dict:
+        """
+        Use this API to upload a replay file to ballchasing.com.
+
+        :param name: Desired name of file (Can be anything).
+        :param replay_data: bytes like object to be uploaded.
+        :param visibility: to set the visibility of the uploaded replay. (Default: Public)
+        :param group: assign replay to a specific group id
+        :return: the result of the POST request.
+        """
+        files = FormData()
+        files.add_field(
+            "file",
+            replay_data,
+            filename=name,
+        )
+
+        r = await self._request(
+            f"/v2/upload",
+            self._session.post,
+            data=files,
+            params={"visibility": visibility, "group": group},
+        )
+
+        return await r.json()
+
 
     async def delete_replay(self, replay_id: str) -> None:
         """
@@ -443,7 +478,7 @@ class Api:
         async for replay in self.get_replays(group_id=group_id, deep=deep):
             yield replay
 
-    async def download_replay(self, replay_id: str, folder: str):
+    async def download_replay(self, replay_id: str, folder: str) -> None:
         """
         Download a replay file.
 
@@ -453,6 +488,16 @@ class Api:
         r = await self._request(f"/replays/{replay_id}/file", self._session.get)
         async with aiofiles.open(f"{folder}/{replay_id}.replay", mode="wb") as fd:
             await fd.write(await r.read())
+
+    async def download_replay_content(self, replay_id: str) -> bytes:
+        """
+        Download a replay file contents
+
+        :param replay_id: the replay id.
+        """
+        r = await self._request(f"/replays/{replay_id}/file", self._session.get)
+        return await r.read()
+        
 
     async def download_group(self, group_id: str, folder: str, recursive=True):
         """
