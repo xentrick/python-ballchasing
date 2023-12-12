@@ -33,17 +33,5 @@ __url__ = "https://github.com/Rolv-Arild/python-ballchasing"
 __download_url__ = "https://pypi.python.org/pypi/python-ballchasing"
 __description__ = "A Python wrapper around the Ballchasing API"
 
-from .api import Api  # noqa
-from .constants import (  # noqa
-    Playlist,
-    Rank,
-    Season,
-    MatchResult,
-    ReplaySortBy,
-    GroupSortBy,
-    SortDir,
-    Visibility,
-    PlayerIdentification,
-    TeamIdentification,
-    Map,
-)
+from ballchasing.api import Api  # noqa
+from ballchasing.enums import *

@@ -2,7 +2,7 @@ import pytest
 import asyncio
 import datetime as dt
 import random
-from ballchasing.constants import Season, Visibility
+from ballchasing.enums import Visibility
 
 TEST_REPLAY_ID = "f1fa6c0e-3d6f-4475-b844-5f6d7099aebe"
 TEST_REPLAY_PATH = "tests/replays/uploadme.replay"

@@ -15,7 +15,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url=__url__,
     download_url=__download_url__,
-    install_requires=["requests", "aiofiles", "aiohttp"],
+    install_requires=["aiofiles", "aiohttp"],
     packages=setuptools.find_packages(),
     package_data={'ballchasing': ['*.tsv']},
     classifiers=[

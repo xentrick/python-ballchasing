@@ -1,0 +1,130 @@
+{
+    "count": 10000,
+    "list": [
+        {
+            "id": "6005e7c1-35ec-4933-8b52-6b61e4e0adee",
+            "link": "https://ballchasing.com/api/replays/6005e7c1-35ec-4933-8b52-6b61e4e0adee",
+            "rocket_league_id": "BAF515E046D66C181EF83BA22859374E",
+            "replay_title": "2023-12-12.01.13 Mr.TomNoble Ranked Standard Loss",
+            "map_code": "stadium_p",
+            "map_name": "DFH Stadium",
+            "playlist_id": "ranked-standard",
+            "playlist_name": "Ranked Standard",
+            "duration": 227,
+            "overtime": false,
+            "season": 13,
+            "season_type": "free2play",
+            "date": "2023-12-12T01:13:40-05:00",
+            "date_has_tz": true,
+            "visibility": "public",
+            "created": "2023-12-12T06:13:42.449444Z",
+            "min_rank": {
+                "tier": 17,
+                "division": 4,
+                "name": "Champion II Division 4",
+                "id": "champion-2"
+            },
+            "max_rank": {
+                "tier": 18,
+                "division": 3,
+                "name": "Champion III Division 3",
+                "id": "champion-3"
+            },
+            "uploader": {
+                "steam_id": "76561199045988619",
+                "name": "SirTommyNoble",
+                "profile_url": "https://steamcommunity.com/profiles/76561199045988619/",
+                "avatar": "https://avatars.steamstatic.com/7c826a5c007a12403cff0c258c67e05ffd2f0d2e.jpg"
+            },
+            "blue": {
+                "players": [
+                    {
+                        "start_time": 0,
+                        "end_time": 227.31102,
+                        "name": "Mr.TomNoble",
+                        "id": {
+                            "platform": "epic",
+                            "id": "ea4721d0599c44d085556f8436a81735"
+                        },
+                        "rank": {
+                            "tier": 17,
+                            "division": 4,
+                            "name": "Champion II Division 4",
+                            "id": "champion-2"
+                        },
+                        "score": 230
+                    },
+                    {
+                        "start_time": 0,
+                        "end_time": 227.31102,
+                        "name": "(P|F)ineapple",
+                        "id": {
+                            "platform": "steam",
+                            "id": "76561198026394434"
+                        },
+                        "score": 194
+                    },
+                    {
+                        "start_time": 0,
+                        "end_time": 227.31102,
+                        "name": "nickm",
+                        "id": {
+                            "platform": "steam",
+                            "id": "76561197960409023"
+                        },
+                        "score": 100
+                    }
+                ]
+            },
+            "orange": {
+                "goals": 4,
+                "players": [
+                    {
+                        "start_time": 0,
+                        "end_time": 227.31102,
+                        "name": "intrstellrr",
+                        "id": {
+                            "platform": "xbox",
+                            "id": "ecce3c05f8010900"
+                        },
+                        "mvp": true,
+                        "rank": {
+                            "tier": 18,
+                            "division": 3,
+                            "name": "Champion III Division 3",
+                            "id": "champion-3"
+                        },
+                        "score": 356
+                    },
+                    {
+                        "start_time": 0,
+                        "end_time": 227.31102,
+                        "name": "MechManiac24",
+                        "id": {
+                            "platform": "epic",
+                            "id": "6b38129ef7544bb0a8da7b8b437f3037"
+                        },
+                        "score": 312
+                    },
+                    {
+                        "start_time": 0,
+                        "end_time": 227.31102,
+                        "name": "6MilliZyny",
+                        "id": {
+                            "platform": "epic",
+                            "id": "00dcb3decd8b456dbca170702ab9b9cd"
+                        },
+                        "rank": {
+                            "tier": 18,
+                            "division": 3,
+                            "name": "Champion III Division 3",
+                            "id": "champion-3"
+                        },
+                        "score": 292
+                    }
+                ]
+            }
+        }
+    ],
+    "next": "https://ballchasing.com/api/replays?after=MS43MDIzNjE2MjI0NDllKzEyXzYwMDVlN2MxLTM1ZWMtNDkzMy04YjUyLTZiNjFlNGUwYWRlZQ%3D%3D&count=1&player-name=nickm&sort-dir=desc"
+}
