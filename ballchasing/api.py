@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Optional, Iterator, Union, List, Callable, AsyncIterator, Type
 from types import TracebackType
 
-from aiohttp import ClientSession, TCPConnector, ClientResponse, FormData
+from aiohttp import ClientSession, TCPConnector, ClientResponse, FormData, ClientTimeout
 import asyncio
 import aiofiles
 
@@ -27,6 +27,7 @@ from ballchasing import util
 log = logging.getLogger("ballchasing")
 
 DEFAULT_URL = "https://ballchasing.com/api"
+DEFAULT_TIMEOUT = 60
 
 
 class Api:
@@ -57,6 +58,8 @@ class Api:
         self.headers = {"Authorization": self.auth_key}
         self.max_connections = max_connections
         self.connector = TCPConnector(limit=self.max_connections)
+        self.timeout = ClientTimeout(total=DEFAULT_TIMEOUT)
+        self._session = ClientSession(connector=self.connector, headers=self.headers, timeout=self.timeout)
 
         self.steam_name: str | None = None
         self.steam_id: str | None = None
@@ -71,7 +74,7 @@ class Api:
         self.print_on_rate_limit = print_on_rate_limit
 
     async def _request(
-        self, url_or_endpoint: str, method: str, **params
+        self, url_or_endpoint: str, method: Callable, **params
     ) -> "ClientResponse":
         """
         Helper method for all requests.
@@ -89,24 +92,8 @@ class Api:
         retries = 0
         while True:
             try:
-                connector = TCPConnector(limit=self.max_connections)
-                async with ClientSession(
-                    connector=connector, headers=self.headers
-                ) as session:
-                    match method:
-                        case "GET":
-                            r = await session.get(url, **params)
-                        case "POST":
-                            r = await session.post(url, **params)
-                        case "PUT":
-                            r = await session.put(url, **params)
-                        case "PATCH":
-                            r = await session.patch(url, **params)
-                        case "DELETE":
-                            r = await session.delete(url, **params)
-                        case _:
-                            raise ValueError("Invalid HTTP method.")
-                    retries = 0
+                r = await method(url, **params)
+                retries = 0
             except ConnectionError as e:
                 log.error("Connection error, trying again in 10 seconds...")
                 await asyncio.sleep(10)
@@ -139,7 +126,7 @@ class Api:
         This method runs automatically at initialization and the steam name and id as well as patron type are stored.
         :return: ping response.
         """
-        resp = await self._request("/", "GET")
+        resp = await self._request("/", self._session.get)
         result = await resp.json()
         ping = models.Ping(**result)
 
@@ -230,7 +217,7 @@ class Api:
         }
         # Remove all NoneType parameters.
         params = dict((k, v) for k, v in params.items() if v is not None)
-        resp = await self._request(url, "GET", params=params)
+        resp = await self._request(url, self._session.get, params=params)
         data = await resp.json()
         return models.ReplaySearch(**data)
 
@@ -319,7 +306,7 @@ class Api:
         while left > 0:
             request_count = min(left, 200)
             params["count"] = request_count
-            resp = await self._request(url, "GET", params=params)
+            resp = await self._request(url, self._session.get, params=params)
             data = await resp.json()
 
             replays = models.ReplaySearch(**data)
@@ -349,7 +336,7 @@ class Api:
         :param replay_id: the replay id.
         :return: the result of the GET request.
         """
-        r = await self._request(f"/replays/{replay_id}", "GET")
+        r = await self._request(f"/replays/{replay_id}", self._session.get)
         data = await r.json()
         return models.Replay(**data)
 
@@ -360,7 +347,7 @@ class Api:
         :param replay_id: the replay id.
         :param params: parameters for the PATCH request.
         """
-        await self._request(f"/replays/{replay_id}", "PATCH", json=params)
+        await self._request(f"/replays/{replay_id}", self._session.patch, json=params)
 
     async def upload_replay(
         self,
@@ -386,7 +373,7 @@ class Api:
 
             r = await self._request(
                 f"/v2/upload",
-                "POST",
+                self._session.post,
                 data=files,
                 params={"visibility": visibility, "group": group},
             )
@@ -417,7 +404,7 @@ class Api:
 
         r = await self._request(
             f"/v2/upload",
-            "POST",
+            self._session.post,
             data=files,
             params={"visibility": visibility, "group": group},
         )
@@ -431,7 +418,7 @@ class Api:
 
         :param replay_id: the replay id.
         """
-        await self._request(f"/replays/{replay_id}", "DELETE")
+        await self._request(f"/replays/{replay_id}", self._session.delete)
 
     async def get_groups(
         self,
@@ -477,7 +464,7 @@ class Api:
         while left > 0:
             request_count = min(left, 200)
             params["count"] = request_count
-            resp = await self._request(url, "GET", params=params)
+            resp = await self._request(url, self._session.get, params=params)
             data = await resp.json()
             groups = models.GroupSearch(**data)
 
@@ -520,7 +507,7 @@ class Api:
             "team_identification": team_identification,
             "parent": parent,
         }
-        r = await self._request(f"/groups", "POST", json=json)
+        r = await self._request(f"/groups", self._session.post, json=json)
         return await r.json()
 
     async def get_group(self, group_id: str) -> models.ReplayGroup:
@@ -530,7 +517,7 @@ class Api:
         :param group_id: the group id.
         :return: the group info with stats.
         """
-        r = await self._request(f"/groups/{group_id}", "GET")
+        r = await self._request(f"/groups/{group_id}", self._session.get)
         data = await r.json()
         return models.ReplayGroup(**data)
 
@@ -541,7 +528,7 @@ class Api:
         :param group_id: the group id
         :param params: parameters for the PATCH request.
         """
-        await self._request(f"/groups/{group_id}", "PATCH", json=params)
+        await self._request(f"/groups/{group_id}", self._session.patch, json=params)
 
     async def delete_group(self, group_id: str) -> None:
         """
@@ -550,7 +537,7 @@ class Api:
 
         :param group_id: the group id.
         """
-        await self._request(f"/groups/{group_id}", "DELETE")
+        await self._request(f"/groups/{group_id}", self._session.delete)
 
     async def get_group_replays(
         self, group_id: str, deep: bool = False
@@ -576,7 +563,7 @@ class Api:
         :param replay_id: the replay id.
         :param folder: the folder to download into.
         """
-        r = await self._request(f"/replays/{replay_id}/file", "GET")
+        r = await self._request(f"/replays/{replay_id}/file", self._session.get)
         async with aiofiles.open(f"{folder}/{replay_id}.replay", mode="wb") as fd:
             await fd.write(await r.read())
 
@@ -586,7 +573,7 @@ class Api:
 
         :param replay_id: the replay id.
         """
-        r = await self._request(f"/replays/{replay_id}/file", "GET")
+        r = await self._request(f"/replays/{replay_id}/file", self._session.get)
         return await r.read()
 
     async def download_group(self, group_id: str, folder: str, recursive=True):
@@ -612,8 +599,22 @@ class Api:
         """
         Use this API to get the list of map codes to map names (map as in stadium).
         """
-        res = await self._request("/maps", "GET")
+        res = await self._request("/maps", self._session.get)
         return await res.json()
+
+    def __del__(self):
+        try:
+            loop = asyncio.get_event_loop()
+            asyncio.create_task(self.close())
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(self.close())
+
+    async def close(self):
+        if not hasattr(self, "_session"):
+            return
+        if not self._session.closed:
+            await self._session.close()
 
     def __str__(self):
         return (
