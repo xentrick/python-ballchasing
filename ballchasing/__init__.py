@@ -35,3 +35,5 @@ __description__ = "A Python wrapper around the Ballchasing API"
 
 from ballchasing.api import Api  # noqa
 from ballchasing.enums import *
+from ballchasing import models
+

@@ -1,25 +1,26 @@
-from pydantic import BaseModel, AnyHttpUrl 
+from pydantic import BaseModel, AnyHttpUrl , ConfigDict
 from datetime import datetime
 from ballchasing.enums import PatreonType, Playlist, Rank, PlayerIdentificationBy, TeamIdentificationBy
 
+class BallchasingModel(BaseModel):
+    """Base class from `BaseModel` to implement hash"""
 
-class Uploader(BaseModel):
+class Uploader(BallchasingModel):
     avatar: AnyHttpUrl
     name: str
     profile_url: AnyHttpUrl
     steam_id: int
 
-class PlayerRank(BaseModel):
+class PlayerRank(BallchasingModel):
     division: int | None
     id: Rank
     name: str
     tier: int
-
-class Platform(BaseModel):
+class Platform(BallchasingModel):
     id: str | None
     platform: str | None
 
-class CameraSettings(BaseModel):
+class CameraSettings(BallchasingModel):
     distance: int
     fov: int
     height: int
@@ -28,7 +29,7 @@ class CameraSettings(BaseModel):
     swivel_speed: float
     transition_speed: float
 
-class CoreStats(BaseModel):
+class CoreStats(BallchasingModel):
     assists: int
     goals_against: int
     goals: int
@@ -39,7 +40,7 @@ class CoreStats(BaseModel):
     shots_against: int
     shots: int
 
-class BoostStats(BaseModel):
+class BoostStats(BallchasingModel):
     amount_collected_big: int
     amount_collected_small: int
     amount_collected: int
@@ -69,7 +70,7 @@ class BoostStats(BaseModel):
     time_full_boost: float
     time_zero_boost: float
 
-class MovementStats(BaseModel):
+class MovementStats(BallchasingModel):
     avg_powerslide_duration: float | None
     avg_speed_percentage: float | None
     avg_speed: int | None
@@ -89,7 +90,7 @@ class MovementStats(BaseModel):
     time_supersonic_speed: float
     total_distance: int | None
 
-class PositioningStats(BaseModel):
+class PositioningStats(BallchasingModel):
     avg_distance_to_ball_no_possession: int | None
     avg_distance_to_ball_possession: int | None
     avg_distance_to_ball: int | None
@@ -117,15 +118,15 @@ class PositioningStats(BaseModel):
     time_offensive_half: float
     time_offensive_third: float
 
-class DemoStats(BaseModel):
+class DemoStats(BallchasingModel):
     inflicted: int
     taken: int
 
-class BallStats(BaseModel):
-    time_in_side: float
-    possession_time: float
+class BallStats(BallchasingModel):
+    time_in_side: float | None
+    possession_time: float | None
 
-class Stats(BaseModel):
+class Stats(BallchasingModel):
     ball: BallStats | None
     boost: BoostStats
     core: CoreStats
@@ -133,7 +134,7 @@ class Stats(BaseModel):
     movement: MovementStats
     positioning: PositioningStats
 
-class Player(BaseModel):
+class Player(BallchasingModel):
     camera: CameraSettings | None
     car_id: int | None
     car_name: str | None
@@ -147,13 +148,13 @@ class Player(BaseModel):
     steering_sensitivity: float | None
 
 
-class Team(BaseModel):
+class Team(BallchasingModel):
     color: str | None
     name: str | None
     players: list[Player] = []
     stats: Stats | None
 
-class Replay(BaseModel):
+class Replay(BallchasingModel):
     blue: Team
     created: datetime
     date_has_timezone: bool | None
@@ -174,14 +175,34 @@ class Replay(BaseModel):
     replay_title: str | None
     rocket_league_id: str
     season: int
-    season_type: str
+    season_type: str | None
     status: str | None
     team_size: int | None
     title: str | None
     uploader: Uploader
     visibility: str
 
-class Ping(BaseModel):
+    def __hash__(self):
+        if self.match_guid:
+            return hash(self.match_guid)
+        else:
+            return hash(self.id)
+
+    def __eq__(self, other):
+        if not isinstance(other, Replay):
+            raise ValueError("Must be a ballchasing replay")
+
+        # Same replay regardless of uploader
+        if self.match_guid == other.match_guid:
+            return True
+
+        # Ballchasing ID fallback
+        if self.id == other.id:
+            return True
+        return False
+        
+
+class Ping(BallchasingModel):
     ball: str
     boost: str
     chaser: bool
@@ -190,13 +211,13 @@ class Ping(BaseModel):
     steam_id: str
     type: PatreonType
 
-class ReplaySearch(BaseModel):
+class ReplaySearch(BallchasingModel):
     count: int | None
     list: list[Replay]
     next: AnyHttpUrl | None
 
 
-class Creator(BaseModel):
+class Creator(BallchasingModel):
     steam_id: str
     name: str
     profile_url: AnyHttpUrl
@@ -204,7 +225,7 @@ class Creator(BaseModel):
     avatar_full: str | None
     avatar_medium: str | None
 
-class Cumulative(BaseModel):
+class Cumulative(BallchasingModel):
     games: int
     wins: int
     win_percentage: int
@@ -215,14 +236,14 @@ class Cumulative(BaseModel):
     positioning: PositioningStats
     demo: DemoStats
 
-class GameAverage(BaseModel):
+class GameAverage(BallchasingModel):
     core: CoreStats
     boost: BoostStats
     movement: MovementStats
     positioning: PositioningStats
     demo: DemoStats
 
-class GroupPlayers(BaseModel):
+class GroupPlayers(BallchasingModel):
     platform: str
     id: str
     name: str
@@ -230,19 +251,19 @@ class GroupPlayers(BaseModel):
     cumulative: Cumulative
     game_average: GameAverage
 
-class TeamPlayers(BaseModel):
+class TeamPlayers(BallchasingModel):
     platform: str
     id: str
     name: str
     team: str
 
-class GroupTeams(BaseModel):
+class GroupTeams(BallchasingModel):
     name: str
     players: list[TeamPlayers]
     cumulative: Cumulative
     game_average: GameAverage
 
-class ReplayGroup(BaseModel):
+class ReplayGroup(BallchasingModel):
     id: str
     link: AnyHttpUrl
     name: str
@@ -250,15 +271,24 @@ class ReplayGroup(BaseModel):
     status: str | None
     player_identification: PlayerIdentificationBy
     team_identification: TeamIdentificationBy
-    direct_replays: int
-    indirect_replays: int
+    direct_replays: int | None
+    indirect_replays: int | None
     shared: bool
     creator: Creator | None
     user: Uploader | None
     players: list[GroupPlayers] = []
     teams: list[GroupTeams] = []
 
-class GroupSearch(BaseModel):
+class GroupSearch(BallchasingModel):
     count: int | None
     list: list[ReplayGroup]
     next: AnyHttpUrl | None
+
+
+class GroupCreated(BallchasingModel):
+    id: str
+    link: AnyHttpUrl
+
+class ReplayCreated(BallchasingModel):
+    id: str
+    link: AnyHttpUrl

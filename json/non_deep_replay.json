@@ -1,0 +1,109 @@
+{
+    "blue": {
+        "color": null,
+        "name": null,
+        "players": [
+            {
+                "camera": null,
+                "car_id": null,
+                "car_name": null,
+                "end_time": 370.1648,
+                "id": {
+                    "id": "76561198025659154",
+                    "platform": "steam"
+                },
+                "mvp": null,
+                "pro": null,
+                "rank": null,
+                "start_time": 0.0,
+                "stats": null,
+                "steering_sensitivity": null
+            },
+            {
+                "camera": null,
+                "car_id": null,
+                "car_name": null,
+                "end_time": 370.1648,
+                "id": {
+                    "id": "b6e845fe9d1444d98b84ed16b4e55969",
+                    "platform": "epic"
+                },
+                "mvp": null,
+                "pro": null,
+                "rank": null,
+                "start_time": 0.0,
+                "stats": null,
+                "steering_sensitivity": null
+            }
+        ],
+        "stats": null
+    },
+    "created": "2023-12-19T07:27:35.319479+00:00",
+    "date_has_timezone": null,
+    "date": "2023-12-19T02:27:33-05:00",
+    "duration": 370,
+    "id": "3a147bc4-09fb-447a-86c6-7235403f8337",
+    "link": "https://ballchasing.com/api/replays/3a147bc4-09fb-447a-86c6-7235403f8337",
+    "map_code": "eurostadium_dusk_p",
+    "map_name": null,
+    "match_guid": null,
+    "match_type": null,
+    "max_rank": null,
+    "min_rank": null,
+    "orange": {
+        "color": null,
+        "name": null,
+        "players": [
+            {
+                "camera": null,
+                "car_id": null,
+                "car_name": null,
+                "end_time": 370.1648,
+                "id": {
+                    "id": "76561198304567190",
+                    "platform": "steam"
+                },
+                "mvp": true,
+                "pro": null,
+                "rank": null,
+                "start_time": 0.0,
+                "stats": null,
+                "steering_sensitivity": null
+            },
+            {
+                "camera": null,
+                "car_id": null,
+                "car_name": null,
+                "end_time": 370.1648,
+                "id": {
+                    "id": "76561198249393782",
+                    "platform": "steam"
+                },
+                "mvp": null,
+                "pro": null,
+                "rank": null,
+                "start_time": 0.0,
+                "stats": null,
+                "steering_sensitivity": null
+            }
+        ],
+        "stats": null
+    },
+    "overtime": false,
+    "playlist_id": "unranked-doubles",
+    "playlist_name": "Unranked Doubles",
+    "replay_title": "2023-12-19.02.27 Snack Time! Casual Doubles Loss",
+    "rocket_league_id": "8BDEF68A46238CFD39BAE4921C587BE6",
+    "season": 13,
+    "season_type": "free2play",
+    "status": null,
+    "team_size": null,
+    "title": null,
+    "uploader": {
+        "avatar": "https://avatars.steamstatic.com/be5ff842cc8f36f04971c1efea5ec423b27c7658.jpg",
+        "name": "Manon Pls Grab Me",
+        "profile_url": "https://steamcommunity.com/id/srslyplsdontlaugh/",
+        "steam_id": 76561198025659154
+    },
+    "visibility": "public"
+}

@@ -8,6 +8,6 @@ def rfc3339(dt):
     elif isinstance(dt, str):
         return dt
     elif isinstance(dt, datetime):
-        return dt.isoformat("T") + "Z"
+        return dt.isoformat()
     else:
         raise ValueError("Date must be either string or datetime")

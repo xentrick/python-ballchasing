@@ -354,7 +354,7 @@ class Api:
         replay_file: str,
         visibility: Visibility = Visibility.PUBLIC,
         group: str | None = None,
-    ) -> dict:
+    ) -> models.ReplayCreated:
         """
         Use this API to upload a replay file to ballchasing.com.
 
@@ -377,7 +377,8 @@ class Api:
                 data=files,
                 params={"visibility": visibility, "group": group},
             )
-        return await r.json()
+            data = await r.json()
+            return models.ReplayCreated(**data)
 
     async def upload_replay_from_bytes(
         self,
@@ -385,7 +386,7 @@ class Api:
         replay_data: bytes,
         visibility: Visibility = Visibility.PUBLIC,
         group: str | None = None,
-    ) -> dict:
+    ) -> models.ReplayCreated:
         """
         Use this API to upload a replay file to ballchasing.com.
 
@@ -409,7 +410,8 @@ class Api:
             params={"visibility": visibility, "group": group},
         )
 
-        return await r.json()
+        data = await r.json()
+        return models.ReplayCreated(**data)
 
     async def delete_replay(self, replay_id: str) -> None:
         """
@@ -485,7 +487,7 @@ class Api:
         player_identification: PlayerIdentificationBy,
         team_identification: TeamIdentificationBy,
         parent: str | None = None,
-    ) -> dict:
+    ) -> models.GroupCreated:
         """
         Use this API to create a new replay group.
 
@@ -508,7 +510,9 @@ class Api:
             "parent": parent,
         }
         r = await self._request(f"/groups", self._session.post, json=json)
-        return await r.json()
+        data = await r.json()
+        result = models.GroupCreated(**data)
+        return result
 
     async def get_group(self, group_id: str) -> models.ReplayGroup:
         """
@@ -540,7 +544,7 @@ class Api:
         await self._request(f"/groups/{group_id}", self._session.delete)
 
     async def get_group_replays(
-        self, group_id: str, deep: bool = False
+        self, group_id: str, deep: bool = False, recurse: bool=False
     ) -> AsyncIterator[models.Replay]:
         """
         Finds all replays in a group, including child groups.
@@ -549,12 +553,13 @@ class Api:
         :param deep: whether or not to get full stats for each replay (will be much slower).
         :return: an iterator over all the replays in the group.
         """
-        # child_groups = await self.get_groups(group=group_id)
-        async for child in self.get_groups(group=group_id):
-            async for replay in self.get_group_replays(child.id, deep):
+        if recurse:
+            async for child in self.get_groups(group=group_id):
+                async for replay in self.get_group_replays(child.id, deep, recurse=True):
+                    yield replay
+        else:
+            async for replay in self.get_replays(group_id=group_id, deep=deep):
                 yield replay
-        async for replay in self.get_replays(group_id=group_id, deep=deep):
-            yield replay
 
     async def download_replay(self, replay_id: str, folder: str) -> None:
         """
