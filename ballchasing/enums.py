@@ -1,6 +1,11 @@
 from typing import Literal, get_args
 from enum import Enum, StrEnum, IntEnum
 
+class ReplayStatus(StrEnum):
+    OK = "ok"
+    PENDING = "pending"
+    FAILED = "failed"
+
 class Playlist(StrEnum):
     DUELS = "ranked-duels"
     DOUBLES = "ranked-doubles"
@@ -88,6 +93,8 @@ class PatreonType(StrEnum):
     DIAMOND = "diamond"
     CHAMPION = "champion"
     GC = "gc"
+    LEGEND = "legend"
+    ORG = "org"
 
     def rate_limit(self) -> float:
         match self:
@@ -101,3 +108,7 @@ class PatreonType(StrEnum):
                 return 1 / 8
             case PatreonType.GC:
                 return 1 / 16
+            case PatreonType.LEGEND:
+                return 1 / 32
+            case PatreonType.ORG:
+                return 1 / 64

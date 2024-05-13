@@ -10,6 +10,7 @@ import asyncio
 import aiofiles
 
 from ballchasing import models
+from ballchasing.exceptions import MissingAPIKey, BallchasingFault, UserFault, DuplicateReplay
 from ballchasing.enums import (
     Rank,
     Playlist,
@@ -113,6 +114,16 @@ class Api:
                 if self.sleep_time_on_rate_limit:
                     await asyncio.sleep(self.sleep_time_on_rate_limit)
                 self.rate_limit_count += 1
+            elif r.status == 400:
+                err = await r.json()
+                log.error(err.get("error"))
+                raise UserFault
+            elif r.status == 401:
+                raise MissingAPIKey
+            elif r.status == 500:
+                err = await r.json()
+                log.error(err.get("error"))
+                raise BallchasingFault
             else:
                 raise ValueError(r)
 
@@ -606,14 +617,6 @@ class Api:
         """
         res = await self._request("/maps", self._session.get)
         return await res.json()
-
-    def __del__(self):
-        try:
-            loop = asyncio.get_event_loop()
-            asyncio.create_task(self.close())
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            loop.run_until_complete(self.close())
 
     async def close(self):
         if not hasattr(self, "_session"):

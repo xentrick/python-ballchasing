@@ -1,9 +1,18 @@
-from pydantic import BaseModel, AnyHttpUrl , ConfigDict
+from pydantic import BaseModel, AnyHttpUrl, ConfigDict
 from datetime import datetime
-from ballchasing.enums import PatreonType, Playlist, Rank, PlayerIdentificationBy, TeamIdentificationBy
+from ballchasing.enums import (
+    PatreonType,
+    Playlist,
+    Rank,
+    PlayerIdentificationBy,
+    TeamIdentificationBy,
+    ReplayStatus,
+    Visibility,
+)
 
 class BallchasingModel(BaseModel):
     """Base class from `BaseModel` to implement hash"""
+
 
 class Uploader(BallchasingModel):
     avatar: AnyHttpUrl
@@ -11,14 +20,18 @@ class Uploader(BallchasingModel):
     profile_url: AnyHttpUrl
     steam_id: int
 
+
 class PlayerRank(BallchasingModel):
-    division: int | None
+    division: int | None = None
     id: Rank
     name: str
     tier: int
+
+
 class Platform(BallchasingModel):
-    id: str | None
-    platform: str | None
+    id: str | None = None
+    platform: str | None = None
+
 
 class CameraSettings(BallchasingModel):
     distance: int
@@ -29,40 +42,42 @@ class CameraSettings(BallchasingModel):
     swivel_speed: float
     transition_speed: float
 
+
 class CoreStats(BallchasingModel):
-    assists: int
-    goals_against: int
-    goals: int
-    mvp: bool | None
-    saves: int
-    score: int
-    shooting_percentage: int
-    shots_against: int
-    shots: int
+    assists: float
+    goals_against: float
+    goals: float
+    mvp: bool | None = None
+    saves: float
+    score: float
+    shooting_percentage: float
+    shots_against: float
+    shots: float
+
 
 class BoostStats(BallchasingModel):
-    amount_collected_big: int
-    amount_collected_small: int
-    amount_collected: int
-    amount_overfill_stolen: int
-    amount_overfill: int
-    amount_stolen_big: int
-    amount_stolen_small: int
-    amount_stolen: int
-    amount_used_while_supersonic: int
-    avg_amount: float | None
-    bcpm: float | None
-    bpm: int | None
-    count_collected_big: int
-    count_collected_small: int
-    count_stolen_big: int
-    count_stolen_small: int
-    percent_boost_0_25: float | None
-    percent_boost_25_50: float | None
-    percent_boost_50_75: float | None
-    percent_boost_75_100: float | None
-    percent_full_boost: float | None
-    percent_zero_boost: float | None
+    amount_collected_big: float
+    amount_collected_small: float
+    amount_collected: float
+    amount_overfill_stolen: float
+    amount_overfill: float
+    amount_stolen_big: float
+    amount_stolen_small: float
+    amount_stolen: float
+    amount_used_while_supersonic: float
+    avg_amount: float | None = None
+    bcpm: float | None = None
+    bpm: float | None = None
+    count_collected_big: float
+    count_collected_small: float
+    count_stolen_big: float
+    count_stolen_small: float
+    percent_boost_0_25: float | None = None
+    percent_boost_25_50: float | None = None
+    percent_boost_50_75: float | None = None
+    percent_boost_75_100: float | None = None
+    percent_full_boost: float | None = None
+    percent_zero_boost: float | None = None
     time_boost_0_25: float
     time_boost_25_50: float
     time_boost_50_75: float
@@ -70,17 +85,18 @@ class BoostStats(BallchasingModel):
     time_full_boost: float
     time_zero_boost: float
 
+
 class MovementStats(BallchasingModel):
-    avg_powerslide_duration: float | None
-    avg_speed_percentage: float | None
-    avg_speed: int | None
-    count_powerslide: int
-    percent_boost_speed: float | None
-    percent_ground: float | None
-    percent_high_air: float | None
-    percent_low_air: float | None
-    percent_slow_speed: float | None
-    percent_supersonic_speed: float | None
+    avg_powerslide_duration: float | None = None
+    avg_speed_percentage: float | None = None
+    avg_speed: float | None = None
+    count_powerslide: float
+    percent_boost_speed: float | None = None
+    percent_ground: float | None = None
+    percent_high_air: float | None = None
+    percent_low_air: float | None = None
+    percent_slow_speed: float | None = None
+    percent_supersonic_speed: float | None = None
     time_boost_speed: float
     time_ground: float
     time_high_air: float
@@ -88,99 +104,106 @@ class MovementStats(BallchasingModel):
     time_powerslide: float
     time_slow_speed: float
     time_supersonic_speed: float
-    total_distance: int | None
+    total_distance: float | None = None
+
 
 class PositioningStats(BallchasingModel):
-    avg_distance_to_ball_no_possession: int | None
-    avg_distance_to_ball_possession: int | None
-    avg_distance_to_ball: int | None
-    avg_distance_to_mates: int | None
-    percent_behind_ball: float |  None
-    percent_closest_to_ball: float |  None
-    percent_defensive_half: float |  None
-    percent_defensive_third: float |  None
-    percent_farthest_from_ball: float |  None
-    percent_infront_ball: float |  None
-    percent_most_back: float |  None
-    percent_most_forward: float |  None
-    percent_neutral_third: float |  None
-    percent_offensive_half: float |  None
-    percent_offensive_third: float |  None
+    avg_distance_to_ball_no_possession: float | None = None
+    avg_distance_to_ball_possession: float | None = None
+    avg_distance_to_ball: float | None = None
+    avg_distance_to_mates: int | None = None
+    percent_behind_ball: float | None = None
+    percent_closest_to_ball: float | None = None
+    percent_defensive_half: float | None = None
+    percent_defensive_third: float | None = None
+    percent_farthest_from_ball: float | None = None
+    percent_infront_ball: float | None = None
+    percent_most_back: float | None = None
+    percent_most_forward: float | None = None
+    percent_neutral_third: float | None = None
+    percent_offensive_half: float | None = None
+    percent_offensive_third: float | None = None
     time_behind_ball: float
-    time_closest_to_ball: int | None
+    time_closest_to_ball: float | None = None
     time_defensive_half: float
     time_defensive_third: float
-    time_farthest_from_ball: int | None
+    time_farthest_from_ball: float | None = None
     time_infront_ball: float
-    time_most_back: int | None
-    time_most_forward: int | None
+    time_most_back: float | None = None
+    time_most_forward: float | None = None
     time_neutral_third: float
     time_offensive_half: float
     time_offensive_third: float
 
+
 class DemoStats(BallchasingModel):
-    inflicted: int
-    taken: int
+    inflicted: float
+    taken: float
+
 
 class BallStats(BallchasingModel):
-    time_in_side: float | None
-    possession_time: float | None
+    time_in_side: float | None = None
+    possession_time: float | None = None
+
 
 class Stats(BallchasingModel):
-    ball: BallStats | None
+    ball: BallStats | None = None
     boost: BoostStats
     core: CoreStats
     demo: DemoStats
     movement: MovementStats
     positioning: PositioningStats
 
+
 class Player(BallchasingModel):
-    camera: CameraSettings | None
-    car_id: int | None
-    car_name: str | None
+    camera: CameraSettings | None = None
+    car_id: int | None = None
+    car_name: str | None = None
     end_time: float
     id: Platform
-    mvp: bool | None
-    pro: bool | None
-    rank: PlayerRank | None
+    mvp: bool | None = None
+    name: str
+    pro: bool | None = None
+    rank: PlayerRank | None = None
     start_time: float
-    stats: Stats | None
-    steering_sensitivity: float | None
+    stats: Stats | None = None
+    steering_sensitivity: float | None = None
 
 
 class Team(BallchasingModel):
-    color: str | None
-    name: str | None
+    color: str | None = None
+    name: str | None = None
     players: list[Player] = []
-    stats: Stats | None
+    stats: Stats | None = None
+
 
 class Replay(BallchasingModel):
-    blue: Team
+    blue: Team | None = None
     created: datetime
-    date_has_timezone: bool | None
-    date: datetime
-    duration: int
+    date_has_timezone: bool | None = None
+    date: datetime | None = None
+    duration: int | None = None
     id: str
     link: AnyHttpUrl
-    map_code: str
-    map_name: str | None
-    match_guid: str | None
-    match_type: str | None
-    max_rank: PlayerRank | None
-    min_rank: PlayerRank | None
-    orange: Team
-    overtime: bool
-    playlist_id: Playlist | None
-    playlist_name: str | None
-    replay_title: str | None
-    rocket_league_id: str
-    season: int
-    season_type: str | None
-    status: str | None
-    team_size: int | None
-    title: str | None
+    map_code: str | None = None
+    map_name: str | None = None
+    match_guid: str | None = None
+    match_type: str | None = None
+    max_rank: PlayerRank | None = None
+    min_rank: PlayerRank | None = None
+    orange: Team | None = None
+    overtime: bool | None = None
+    playlist_id: Playlist | None = None
+    playlist_name: str | None = None
+    replay_title: str | None = None
+    rocket_league_id: str | None = None
+    season: int | None = None
+    season_type: str | None = None
+    status: ReplayStatus | None = None
+    team_size: int | None = None
+    title: str | None = None
     uploader: Uploader
-    visibility: str
+    visibility: Visibility | None = None
 
     def __hash__(self):
         if self.match_guid:
@@ -200,7 +223,7 @@ class Replay(BallchasingModel):
         if self.id == other.id:
             return True
         return False
-        
+
 
 class Ping(BallchasingModel):
     ball: str
@@ -211,84 +234,94 @@ class Ping(BallchasingModel):
     steam_id: str
     type: PatreonType
 
+
 class ReplaySearch(BallchasingModel):
-    count: int | None
+    count: int | None = None
     list: list[Replay]
-    next: AnyHttpUrl | None
+    next: AnyHttpUrl | None = None
 
 
 class Creator(BallchasingModel):
-    steam_id: str
+    avatar_full: str | None = None
+    avatar_medium: str | None = None
+    avatar: AnyHttpUrl
     name: str
     profile_url: AnyHttpUrl
-    avatar: AnyHttpUrl
-    avatar_full: str | None
-    avatar_medium: str | None
+    steam_id: str
+
 
 class Cumulative(BallchasingModel):
-    games: int
-    wins: int
-    win_percentage: int
-    play_duration: int
-    core: CoreStats
     boost: BoostStats
-    movement: MovementStats
-    positioning: PositioningStats
+    core: CoreStats
     demo: DemoStats
+    games: int
+    movement: MovementStats
+    play_duration: int
+    positioning: PositioningStats
+    win_percentage: float
+    wins: int
+
 
 class GameAverage(BallchasingModel):
-    core: CoreStats
     boost: BoostStats
+    core: CoreStats
+    demo: DemoStats
     movement: MovementStats
     positioning: PositioningStats
-    demo: DemoStats
+
 
 class GroupPlayers(BallchasingModel):
-    platform: str
-    id: str
-    name: str
-    team: str
     cumulative: Cumulative
     game_average: GameAverage
+    id: str
+    name: str
+    platform: str
+    team: str
+
 
 class TeamPlayers(BallchasingModel):
-    platform: str
     id: str
     name: str
+    platform: str
     team: str
 
+
 class GroupTeams(BallchasingModel):
-    name: str
-    players: list[TeamPlayers]
     cumulative: Cumulative
     game_average: GameAverage
+    name: str
+    players: list[TeamPlayers]
+
 
 class ReplayGroup(BallchasingModel):
+    created: datetime
+    creator: Creator | None = None
+    direct_replays: int | None = None
+    failed_replays: list[str] | None = None
     id: str
+    indirect_replays: int | None = None
     link: AnyHttpUrl
     name: str
-    created: datetime
-    status: str | None
     player_identification: PlayerIdentificationBy
-    team_identification: TeamIdentificationBy
-    direct_replays: int | None
-    indirect_replays: int | None
-    shared: bool
-    creator: Creator | None
-    user: Uploader | None
     players: list[GroupPlayers] = []
+    shared: bool
+    status: str | None = None
+    team_identification: TeamIdentificationBy
     teams: list[GroupTeams] = []
+    user: Uploader | None = None
+
 
 class GroupSearch(BallchasingModel):
-    count: int | None
+    count: int | None = None
     list: list[ReplayGroup]
-    next: AnyHttpUrl | None
+    next: AnyHttpUrl | None = None
 
 
 class GroupCreated(BallchasingModel):
     id: str
     link: AnyHttpUrl
 
+
 class ReplayCreated(BallchasingModel):
     id: str
-    link: AnyHttpUrl
+    link: AnyHttpUrl | None = None
