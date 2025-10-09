@@ -116,6 +116,6 @@ class PatreonType(StrEnum):
             case PatreonType.GC | PatreonType.LEGEND | PatreonType.ORG:
                 # This should be 16 requests per second                return 1 / 8
                 # Ballchasing is lying to us...
-                return 1 / 8
+                return 1 / 12
             case _:
                 return 1 / 2

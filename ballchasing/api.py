@@ -144,57 +144,57 @@ class Api:
         retries = 0
         rate_limit_retries = 0
         while True:
-            async with self.limiter:
-                try:
-                    log.debug(f"Ballchasing request: {url} {params}")
-                    self.total_requests += 1
+            try:
+                log.debug(f"Ballchasing request: {url} {params}")
+                self.total_requests += 1
+                async with self.limiter:
                     r: ClientResponse = await method(url, **params)
-                except ConnectionError as e:
-                    log.error("Connection error, trying again in 10 seconds...")
-                    await asyncio.sleep(10)
-                    retries += 1
-                    if retries >= RETRY_COUNT:
-                        raise e
-                    continue
-                except TimeoutError as e:
-                    log.error("Connection to ballchasing timed out.")
+            except ConnectionError as e:
+                log.error("Connection error, trying again in 10 seconds...")
+                await asyncio.sleep(10)
+                retries += 1
+                if retries >= RETRY_COUNT:
                     raise e
+                continue
+            except TimeoutError as e:
+                log.error("Connection to ballchasing timed out.")
+                raise e
 
-                log.debug(f"Response Status: {r.status}")
-                if 200 <= r.status < 300:
-                    return r
-                elif r.status == 429:
-                    # Don't loop forever on rate limit.
-                    rate_limit_retries += 1
-                    if rate_limit_retries > MAX_BACKOFF_ATTEMPTS:
-                        raise BackoffLimitExceeded(
-                            f"Ballchasing is very busy, exceeded maximum attempts ({rate_limit_retries}). Please try again later."
-                        )
+            log.debug(f"Response Status: {r.status}")
+            if 200 <= r.status < 300:
+                return r
+            elif r.status == 429:
+                # Don't loop forever on rate limit.
+                rate_limit_retries += 1
+                if rate_limit_retries > MAX_BACKOFF_ATTEMPTS:
+                    raise BackoffLimitExceeded(
+                        f"Ballchasing is very busy, exceeded maximum attempts ({rate_limit_retries}). Please try again later."
+                    )
 
-                    if self.print_on_rate_limit:
-                        log.warning(f"429 {url} {self.rate_limit_count}")
-                    if self.sleep_time_on_rate_limit:
-                        # Ballchasing rate limiting has been odd, double it.
-                        sleep_time = self.sleep_time_on_rate_limit * (
-                            rate_limit_retries**BACKOFF_MULTIPLIER
-                        )
-                        log.debug(
-                            f"Rate limited by ballchasing. Sleeping for {sleep_time} seconds (Retry: {rate_limit_retries} Backoff: {BACKOFF_MULTIPLIER}"
-                        )
-                        await asyncio.sleep(sleep_time)
-                        log.debug("Woke up from rate limit sleep")
-                elif r.status == 400:
-                    err = await r.json()
-                    log.error(err.get("error"))
-                    raise UserFault(err)
-                elif r.status == 401:
-                    raise MissingAPIKey
-                elif r.status == 500:
-                    err = await r.json()
-                    log.error(err.get("error"))
-                    raise BallchasingFault(err)
-                else:
-                    r.raise_for_status()
+                if self.print_on_rate_limit:
+                    log.warning(f"429 {url} {self.rate_limit_count}")
+                if self.sleep_time_on_rate_limit:
+                    # Ballchasing rate limiting has been odd, double it.
+                    sleep_time = self.sleep_time_on_rate_limit * (
+                        rate_limit_retries**BACKOFF_MULTIPLIER
+                    )
+                    log.debug(
+                        f"Rate limited by ballchasing. Sleeping for {sleep_time} seconds (Retry: {rate_limit_retries} Backoff: {BACKOFF_MULTIPLIER}"
+                    )
+                    await asyncio.sleep(sleep_time)
+                    log.debug("Woke up from rate limit sleep")
+            elif r.status == 400:
+                err = await r.json()
+                log.error(err.get("error"))
+                raise UserFault(err)
+            elif r.status == 401:
+                raise MissingAPIKey
+            elif r.status == 500:
+                err = await r.json()
+                log.error(err.get("error"))
+                raise BallchasingFault(err)
+            else:
+                r.raise_for_status()
 
     async def ping(self) -> models.Ping:
         """
