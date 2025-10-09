@@ -1,12 +1,19 @@
 import setuptools
 
-from ballchasing import __version__, __author__, __email__, __description__, __url__, __download_url__
+from ballchasing import (
+    __version__,
+    __author__,
+    __email__,
+    __description__,
+    __url__,
+    __download_url__,
+)
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name='python-ballchasing',
+    name="python-ballchasing",
     version=__version__,
     author=__author__,
     author_email=__email__,
@@ -15,9 +22,9 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url=__url__,
     download_url=__download_url__,
-    install_requires=["aiofiles", "aiohttp"],
+    install_requires=["aiofiles", "aiohttp", "aiolimiter"],
     packages=setuptools.find_packages(),
-    package_data={'ballchasing': ['*.tsv']},
+    package_data={"ballchasing": ["*.tsv"]},
     classifiers=[
         "Programming Language :: Python :: 3.7",
         "License :: OSI Approved :: MIT License",

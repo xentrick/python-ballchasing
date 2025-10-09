@@ -1,16 +1,21 @@
 import os
-import time
 import logging
+import math
 from datetime import datetime
-from typing import Optional, Iterator, Union, List, Callable, AsyncIterator, Type
-from types import TracebackType
+from typing import Callable, AsyncIterator
 
 from aiohttp import ClientSession, TCPConnector, ClientResponse, FormData, ClientTimeout
+from aiolimiter import AsyncLimiter
 import asyncio
 import aiofiles
 
 from ballchasing import models
-from ballchasing.exceptions import MissingAPIKey, BallchasingFault, UserFault, DuplicateReplay
+from ballchasing.exceptions import (
+    MissingAPIKey,
+    BallchasingFault,
+    BackoffLimitExceeded,
+    UserFault,
+)
 from ballchasing.enums import (
     Rank,
     Playlist,
@@ -28,7 +33,11 @@ from ballchasing import util
 log = logging.getLogger("ballchasing")
 
 DEFAULT_URL = "https://ballchasing.com/api"
-DEFAULT_TIMEOUT = 60
+DEFAULT_TIMEOUT = 30
+RETRY_COUNT = 5
+DEFAULT_MAX_CONNECTION = 10
+MAX_BACKOFF_ATTEMPTS = 15
+BACKOFF_MULTIPLIER = 3
 
 
 class Api:
@@ -42,8 +51,9 @@ class Api:
         sleep_time_on_rate_limit: float | None = None,
         print_on_rate_limit: bool = False,
         base_url: str | None = None,
-        max_connections: int = 0,
+        max_connections: int = 16,
         patreon_type: PatreonType = PatreonType.REGULAR,
+        timeout=DEFAULT_TIMEOUT,
     ):
         """
 
@@ -58,21 +68,62 @@ class Api:
         self.auth_key = auth_key
         self.headers = {"Authorization": self.auth_key}
         self.max_connections = max_connections
-        self.connector = TCPConnector(limit=self.max_connections)
-        self.timeout = ClientTimeout(total=DEFAULT_TIMEOUT)
-        self._session = ClientSession(connector=self.connector, headers=self.headers, timeout=self.timeout)
+        self.patreon_type: PatreonType = patreon_type
+        self.timeout_value = timeout
 
         self.steam_name: str | None = None
         self.steam_id: str | None = None
-        self.patreon_type: PatreonType = patreon_type
         self.rate_limit_count = 0
         self.base_url = DEFAULT_URL if base_url is None else base_url
+        self.total_requests = 0
 
         if sleep_time_on_rate_limit is None:
             self.sleep_time_on_rate_limit = self.patreon_type.rate_limit()
         else:
             self.sleep_time_on_rate_limit = sleep_time_on_rate_limit
+
+        # Configure aiohttp session
+        self.connector = TCPConnector(limit=self.max_connections)
+        self.timeout = ClientTimeout(total=self.timeout_value)
+        self._session = ClientSession(
+            connector=self.connector, headers=self.headers, timeout=self.timeout
+        )
+
+        # AIO Limiter
+        self.configure_limiter()
+
         self.print_on_rate_limit = print_on_rate_limit
+
+    @classmethod
+    async def create(cls, **kwargs):
+        instance = cls(**kwargs)
+        await instance.ping()
+        await instance.reconfigure_session()
+        return instance
+
+    async def reconfigure_session(self):
+        """Configure the aiohttp session with current headers and connector"""
+        await self.close()
+
+        self.configure_limiter()
+
+        log.debug(f"Max Connections: {self.max_connections}")
+        self.connector = TCPConnector(limit=self.max_connections)
+        log.debug(f"Timeout: {self.timeout_value}")
+        self.timeout = ClientTimeout(total=self.timeout_value)
+        self._session = ClientSession(
+            connector=self.connector, headers=self.headers, timeout=self.timeout
+        )
+
+    def configure_limiter(self):
+        """Configure the aiolimiter based on the current sleep time on rate limit"""
+        cps = math.floor((1 / self.sleep_time_on_rate_limit) - 1)
+        log.debug(f"CPS: {cps}")
+        halved_cps = math.floor(cps / 2)
+        log.debug(f"Halved CPS: {halved_cps}")
+        self.max_connections = max(halved_cps, 1)
+        log.debug(f"Connections per second: {self.max_connections}")
+        self.limiter = AsyncLimiter(self.max_connections, 1)
 
     async def _request(
         self, url_or_endpoint: str, method: Callable, **params
@@ -91,41 +142,59 @@ class Api:
             else url_or_endpoint
         )
         retries = 0
+        rate_limit_retries = 0
         while True:
-            try:
-                r = await method(url, **params)
-                retries = 0
-            except ConnectionError as e:
-                log.error("Connection error, trying again in 10 seconds...")
-                await asyncio.sleep(10)
-                retries += 1
-                if retries >= 10:
+            async with self.limiter:
+                try:
+                    log.debug(f"Ballchasing request: {url} {params}")
+                    self.total_requests += 1
+                    r: ClientResponse = await method(url, **params)
+                except ConnectionError as e:
+                    log.error("Connection error, trying again in 10 seconds...")
+                    await asyncio.sleep(10)
+                    retries += 1
+                    if retries >= RETRY_COUNT:
+                        raise e
+                    continue
+                except TimeoutError as e:
+                    log.error("Connection to ballchasing timed out.")
                     raise e
-                continue
-            except TimeoutError as e:
-                log.error("Connection to ballchasing timed out.")
-                raise e
 
-            if 200 <= r.status < 300:
-                return r
-            elif r.status == 429:
-                if self.print_on_rate_limit:
-                    log.warning(f"429 {url} {self.rate_limit_count}")
-                if self.sleep_time_on_rate_limit:
-                    await asyncio.sleep(self.sleep_time_on_rate_limit)
-                self.rate_limit_count += 1
-            elif r.status == 400:
-                err = await r.json()
-                log.error(err.get("error"))
-                raise UserFault
-            elif r.status == 401:
-                raise MissingAPIKey
-            elif r.status == 500:
-                err = await r.json()
-                log.error(err.get("error"))
-                raise BallchasingFault
-            else:
-                raise ValueError(r)
+                log.debug(f"Response Status: {r.status}")
+                if 200 <= r.status < 300:
+                    return r
+                elif r.status == 429:
+                    # Don't loop forever on rate limit.
+                    rate_limit_retries += 1
+                    if rate_limit_retries > MAX_BACKOFF_ATTEMPTS:
+                        raise BackoffLimitExceeded(
+                            f"Ballchasing is very busy, exceeded maximum attempts ({rate_limit_retries}). Please try again later."
+                        )
+
+                    if self.print_on_rate_limit:
+                        log.warning(f"429 {url} {self.rate_limit_count}")
+                    if self.sleep_time_on_rate_limit:
+                        # Ballchasing rate limiting has been odd, double it.
+                        sleep_time = self.sleep_time_on_rate_limit * (
+                            rate_limit_retries**BACKOFF_MULTIPLIER
+                        )
+                        log.debug(
+                            f"Rate limited by ballchasing. Sleeping for {sleep_time} seconds (Retry: {rate_limit_retries} Backoff: {BACKOFF_MULTIPLIER}"
+                        )
+                        await asyncio.sleep(sleep_time)
+                        log.debug("Woke up from rate limit sleep")
+                elif r.status == 400:
+                    err = await r.json()
+                    log.error(err.get("error"))
+                    raise UserFault(err)
+                elif r.status == 401:
+                    raise MissingAPIKey
+                elif r.status == 500:
+                    err = await r.json()
+                    log.error(err.get("error"))
+                    raise BallchasingFault(err)
+                else:
+                    r.raise_for_status()
 
     async def ping(self) -> models.Ping:
         """
@@ -146,6 +215,7 @@ class Api:
         self.patreon_type = ping.type
 
         self.sleep_time_on_rate_limit = self.patreon_type.rate_limit()
+        log.debug(f"Sleep time on rate limit: {self.sleep_time_on_rate_limit}")
         return ping
 
     async def search(
@@ -555,7 +625,7 @@ class Api:
         await self._request(f"/groups/{group_id}", self._session.delete)
 
     async def get_group_replays(
-        self, group_id: str, deep: bool = False, recurse: bool=False
+        self, group_id: str, deep: bool = False, recurse: bool = False
     ) -> AsyncIterator[models.Replay]:
         """
         Finds all replays in a group, including child groups.
@@ -566,7 +636,9 @@ class Api:
         """
         if recurse:
             async for child in self.get_groups(group=group_id):
-                async for replay in self.get_group_replays(child.id, deep, recurse=True):
+                async for replay in self.get_group_replays(
+                    child.id, deep, recurse=True
+                ):
                     yield replay
         else:
             async for replay in self.get_replays(group_id=group_id, deep=deep):
@@ -621,8 +693,9 @@ class Api:
     async def close(self):
         if not hasattr(self, "_session"):
             return
-        if not self._session.closed:
-            await self._session.close()
+        await self._session.close()
+        # Wait a bit for connections to close properly
+        await asyncio.sleep(0.5)
 
     def __str__(self):
         return (

@@ -1,10 +1,12 @@
 from typing import Literal, get_args
 from enum import Enum, StrEnum, IntEnum
 
+
 class ReplayStatus(StrEnum):
     OK = "ok"
     PENDING = "pending"
     FAILED = "failed"
+
 
 class Playlist(StrEnum):
     DUELS = "ranked-duels"
@@ -29,6 +31,7 @@ class Playlist(StrEnum):
     TOURNAMENT = "tournament"
     DROPSHOT_RUMBLE = "dropshot-rumble"
     HEATSEEKER = "heatseeker"
+
 
 class Rank(StrEnum):
     UNRANKED = "unranked"
@@ -56,9 +59,11 @@ class Rank(StrEnum):
     GC3 = "grand-champion-3"
     SSL = "supersonic-legend"
 
+
 class MatchResult(StrEnum):
     WIN = "win"
     LOSS = "loss"
+
 
 class ReplaySortBy(StrEnum):
     REPLAY_DATE = "replay-date"
@@ -74,18 +79,22 @@ class SortDir(StrEnum):
     ASCENDING = "asc"
     DESCENDING = "desc"
 
+
 class Visibility(StrEnum):
     PUBLIC = "public"
     UNLISTED = "unlisted"
     PRIVATE = "private"
 
+
 class PlayerIdentificationBy(StrEnum):
     ID = "by-id"
     NAME = "by-name"
 
+
 class TeamIdentificationBy(StrEnum):
     DISTINCT = "by-distinct-players"
     CLUSTERS = "by-player-clusters"
+
 
 class PatreonType(StrEnum):
     REGULAR = "regular"
@@ -98,17 +107,15 @@ class PatreonType(StrEnum):
 
     def rate_limit(self) -> float:
         match self:
-            case PatreonType.REGULAR:
-                return 3600 / 1000
-            case PatreonType.GOLD:
-                return 3600 / 2000
+            case PatreonType.REGULAR | PatreonType.GOLD:
+                return 1 / 2
             case PatreonType.DIAMOND:
-                return 3600 / 5000
+                return 1 / 4
             case PatreonType.CHAMPION:
                 return 1 / 8
-            case PatreonType.GC:
-                return 1 / 16
-            case PatreonType.LEGEND:
-                return 1 / 32
-            case PatreonType.ORG:
-                return 1 / 64
+            case PatreonType.GC | PatreonType.LEGEND | PatreonType.ORG:
+                # This should be 16 requests per second                return 1 / 8
+                # Ballchasing is lying to us...
+                return 1 / 8
+            case _:
+                return 1 / 2
