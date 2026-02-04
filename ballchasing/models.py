@@ -1,4 +1,4 @@
-from pydantic import BaseModel, AnyHttpUrl, ConfigDict
+from pydantic import BaseModel, AnyHttpUrl
 from datetime import datetime
 from ballchasing.enums import (
     PatreonType,
@@ -9,6 +9,7 @@ from ballchasing.enums import (
     ReplayStatus,
     Visibility,
 )
+
 
 class BallchasingModel(BaseModel):
     """Base class from `BaseModel` to implement hash"""

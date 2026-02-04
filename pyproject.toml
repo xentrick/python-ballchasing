@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "python-ballchasing"
+dynamic = ["version"]
+# authors = [
+#     { name = "ballchasing", email = "email@example.com" }  # Update from __author__ and __email__
+# ]
+description = "A Python wrapper for the ballchasing API"  # Update from __description__
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3.7",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "aiofiles",
+    "aiohttp",
+    "pydantic",
+    "aiolimiter",
+]
+
+[project.urls]
+Homepage = "https://github.com/xentrick/python-ballchasing"  # Update from __url__
+Download = "https://github.com/xentrick/python-ballchasing"  # Update from __download_url__
+
+[tool.setuptools.dynamic]
+version = { attr = "ballchasing.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.setuptools.package-data]
+ballchasing = ["*.tsv"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests/"]
+python_files = ["*.py"]
+env_files = [".env"]

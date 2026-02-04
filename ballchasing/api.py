@@ -453,7 +453,7 @@ class Api:
             )
 
             r = await self._request(
-                f"/v2/upload",
+                "/v2/upload",
                 self._session.post,
                 data=files,
                 params={"visibility": visibility, "group": group},
@@ -485,7 +485,7 @@ class Api:
         )
 
         r = await self._request(
-            f"/v2/upload",
+            "/v2/upload",
             self._session.post,
             data=files,
             params={"visibility": visibility, "group": group},
@@ -590,7 +590,7 @@ class Api:
             "team_identification": team_identification,
             "parent": parent,
         }
-        r = await self._request(f"/groups", self._session.post, json=json)
+        r = await self._request("/groups", self._session.post, json=json)
         data = await r.json()
         result = models.GroupCreated(**data)
         return result
@@ -664,7 +664,9 @@ class Api:
         r = await self._request(f"/replays/{replay_id}/file", self._session.get)
         return await r.read()
 
-    async def download_group(self, group_id: str, folder: str, recursive=True):
+    async def download_group(
+        self, group_id: str, folder: str, recursive=True
+    ) -> tuple[int, int]:
         """
         Download an entire group.
 
@@ -673,15 +675,25 @@ class Api:
         :param recursive: whether or not to create new folders for child groups.
         """
         folder = os.path.join(folder, group_id)
+        group_count = 0
+        replay_count = 0
         if recursive:
             os.makedirs(folder, exist_ok=True)
             async for child_group in self.get_groups(group=group_id):
-                await self.download_group(child_group.id, folder, True)
+                child_group_count, child_replay_count = await self.download_group(
+                    child_group.id, folder, recursive=True
+                )
+                group_count += child_group_count + 1
+                replay_count += child_replay_count
             async for replay in self.get_replays(group_id=group_id):
+                replay_count += 1
                 await self.download_replay(replay.id, folder)
         else:
-            async for replay in self.get_group_replays(group_id):
+            async for replay in self.get_group_replays(group_id, recurse=False):
+                group_count += 1
+                replay_count += 1
                 await self.download_replay(replay.id, folder)
+        return group_count, replay_count
 
     async def get_maps(self):
         """
