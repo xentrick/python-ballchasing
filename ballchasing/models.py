@@ -1,4 +1,4 @@
-from pydantic import BaseModel, AnyHttpUrl
+from pydantic import BaseModel, AnyHttpUrl, ConfigDict
 from datetime import datetime
 from ballchasing.enums import (
     PatreonType,
@@ -326,3 +326,12 @@ class GroupCreated(BallchasingModel):
 class ReplayCreated(BallchasingModel):
     id: str
     link: AnyHttpUrl | None = None
+
+
+class BallchasingError(BallchasingModel):
+    id: str | None = None
+    location: AnyHttpUrl | None = None
+    error: str | None = None
+    chat: dict[str, str] | None = None
+
+    model_config = ConfigDict(extra="allow")

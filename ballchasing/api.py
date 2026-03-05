@@ -15,6 +15,7 @@ from ballchasing.exceptions import (
     BallchasingFault,
     BackoffLimitExceeded,
     UserFault,
+    DuplicateReplay,
 )
 from ballchasing.enums import (
     Rank,
@@ -146,6 +147,8 @@ class Api:
         while True:
             try:
                 log.debug(f"Ballchasing request: {url} {params}")
+                if params.get("data", None):
+                    util.log_form_data(params["data"])
                 self.total_requests += 1
                 async with self.limiter:
                     r: ClientResponse = await method(url, **params)
@@ -189,6 +192,12 @@ class Api:
                 raise UserFault(err)
             elif r.status == 401:
                 raise MissingAPIKey
+            elif r.status == 409:
+                err = await r.json()
+                id = err.get("id", None)
+                location = err.get("location", None)
+                msg = f"Duplicate Replay - {id} ({location})"
+                raise DuplicateReplay(err)
             elif r.status == 500:
                 err = await r.json()
                 log.error(err.get("error"))
@@ -444,7 +453,7 @@ class Api:
         :param group: assign replay to a specific group id
         :return: the result of the POST request.
         """
-        with open(replay_file, "rb") as fd:
+        with open(replay_file, "rb"):
             files = FormData()
             files.add_field(
                 "file",
@@ -459,6 +468,9 @@ class Api:
                 params={"visibility": visibility, "group": group},
             )
             data = await r.json()
+
+            if r.status == 409:
+                raise DuplicateReplay(data)
             return models.ReplayCreated(**data)
 
     async def upload_replay_from_bytes(
@@ -492,6 +504,8 @@ class Api:
         )
 
         data = await r.json()
+        if r.status == 409:
+            raise DuplicateReplay(data)
         return models.ReplayCreated(**data)
 
     async def delete_replay(self, replay_id: str) -> None:
@@ -677,6 +691,7 @@ class Api:
         folder = os.path.join(folder, group_id)
         group_count = 0
         replay_count = 0
+        log.debug("Downloading group %s into %s", group_id, folder)
         if recursive:
             os.makedirs(folder, exist_ok=True)
             async for child_group in self.get_groups(group=group_id):
@@ -686,10 +701,12 @@ class Api:
                 group_count += child_group_count + 1
                 replay_count += child_replay_count
             async for replay in self.get_replays(group_id=group_id):
+                log.debug("Downloading replay %s", replay.id)
                 replay_count += 1
                 await self.download_replay(replay.id, folder)
         else:
             async for replay in self.get_group_replays(group_id, recurse=False):
+                log.debug("Downloading replay %s", replay.id)
                 group_count += 1
                 replay_count += 1
                 await self.download_replay(replay.id, folder)
