@@ -2,7 +2,7 @@ import os
 import logging
 import math
 from datetime import datetime
-from typing import Callable, AsyncIterator
+from typing import Any, Callable, AsyncIterator
 
 from aiohttp import ClientSession, TCPConnector, ClientResponse, FormData, ClientTimeout
 from aiolimiter import AsyncLimiter
@@ -39,6 +39,7 @@ RETRY_COUNT = 5
 DEFAULT_MAX_CONNECTION = 10
 MAX_BACKOFF_ATTEMPTS = 15
 BACKOFF_MULTIPLIER = 3
+RequestDataFactory = Callable[[], tuple[Any, Callable[[], None] | None]]
 
 
 class Api:
@@ -127,7 +128,11 @@ class Api:
         self.limiter = AsyncLimiter(self.max_connections, 1)
 
     async def _request(
-        self, url_or_endpoint: str, method: Callable, **params
+        self,
+        url_or_endpoint: str,
+        method: Callable,
+        data_factory: RequestDataFactory | None = None,
+        **params,
     ) -> "ClientResponse":
         """
         Helper method for all requests.
@@ -145,13 +150,18 @@ class Api:
         retries = 0
         rate_limit_retries = 0
         while True:
+            request_params = dict(params)
+            cleanup = None
+            if data_factory is not None:
+                request_params["data"], cleanup = data_factory()
+
             try:
-                log.debug(f"Ballchasing request: {url} {params}")
-                if params.get("data", None):
-                    util.log_form_data(params["data"])
+                log.debug(f"Ballchasing request: {url} {request_params}")
+                if request_params.get("data", None) is not None:
+                    util.log_form_data(request_params["data"])
                 self.total_requests += 1
                 async with self.limiter:
-                    r: ClientResponse = await method(url, **params)
+                    r: ClientResponse = await method(url, **request_params)
             except ConnectionError as e:
                 log.error("Connection error, trying again in 10 seconds...")
                 await asyncio.sleep(10)
@@ -162,6 +172,9 @@ class Api:
             except TimeoutError as e:
                 log.error("Connection to ballchasing timed out.")
                 raise e
+            finally:
+                if cleanup is not None:
+                    cleanup()
 
             log.debug(f"Response Status: {r.status}")
             if 200 <= r.status < 300:
@@ -453,25 +466,28 @@ class Api:
         :param group: assign replay to a specific group id
         :return: the result of the POST request.
         """
-        with open(replay_file, "rb"):
+
+        def build_form_data() -> tuple[FormData, Callable[[], None]]:
             files = FormData()
+            replay_handle = open(replay_file, "rb")
             files.add_field(
                 "file",
-                open(replay_file, "rb"),
+                replay_handle,
                 filename=replay_file,
             )
+            return files, replay_handle.close
 
-            r = await self._request(
-                "/v2/upload",
-                self._session.post,
-                data=files,
-                params={"visibility": visibility, "group": group},
-            )
-            data = await r.json()
+        r = await self._request(
+            "/v2/upload",
+            self._session.post,
+            data_factory=build_form_data,
+            params={"visibility": visibility, "group": group},
+        )
+        data = await r.json()
 
-            if r.status == 409:
-                raise DuplicateReplay(data)
-            return models.ReplayCreated(**data)
+        if r.status == 409:
+            raise DuplicateReplay(data)
+        return models.ReplayCreated(**data)
 
     async def upload_replay_from_bytes(
         self,
@@ -489,17 +505,20 @@ class Api:
         :param group: assign replay to a specific group id
         :return: the result of the POST request.
         """
-        files = FormData()
-        files.add_field(
-            "file",
-            replay_data,
-            filename=name,
-        )
+
+        def build_form_data() -> tuple[FormData, None]:
+            files = FormData()
+            files.add_field(
+                "file",
+                replay_data,
+                filename=name,
+            )
+            return files, None
 
         r = await self._request(
             "/v2/upload",
             self._session.post,
-            data=files,
+            data_factory=build_form_data,
             params={"visibility": visibility, "group": group},
         )
 
@@ -725,6 +744,13 @@ class Api:
         await self._session.close()
         # Wait a bit for connections to close properly
         await asyncio.sleep(0.5)
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        await self.close()
+        return False
 
     def __str__(self):
         return (

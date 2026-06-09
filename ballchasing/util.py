@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from aiohttp.formdata import FormData
 
 log = logging.getLogger(__name__)
@@ -11,7 +11,9 @@ def rfc3339(dt):
     elif isinstance(dt, str):
         return dt
     elif isinstance(dt, datetime):
-        return dt.isoformat()
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.isoformat().replace("+00:00", "Z")
     else:
         raise ValueError("Date must be either string or datetime")
 

@@ -1,10 +1,3 @@
-from typing import TYPE_CHECKING
-from aiohttp import ClientResponse
-
-if TYPE_CHECKING:
-    from ballchasing.models import BallchasingError
-
-
 class BallchasingException(Exception):
     """Base exception class"""
 

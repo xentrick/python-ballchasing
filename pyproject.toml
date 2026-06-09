@@ -11,7 +11,7 @@ dynamic = ["version"]
 description = "A Python wrapper for the ballchasing API"  # Update from __description__
 readme = "README.md"
 license = { text = "MIT" }
-requires-python = ">=3.7"
+requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Python :: 3.7",
     "License :: OSI Approved :: MIT License",
@@ -42,3 +42,11 @@ asyncio_mode = "auto"
 testpaths = ["tests/"]
 python_files = ["*.py"]
 env_files = [".env"]
+
+[dependency-groups]
+dev = [
+    "pytest>=7.4.4",
+    "pytest-asyncio>=0.21.2",
+    "pytest-dotenv>=0.5.2",
+    "ty>=0.0.45",
+]
