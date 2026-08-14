@@ -22,18 +22,44 @@
 # SOFTWARE.
 
 """A library that provides a Python interface to the Ballchasing API."""
-from __future__ import absolute_import
 
 __author__ = "Rolv-Arild Braaten"
 __email__ = "rolv_arild@hotmail.com"
 __copyright__ = "Copyright (c) 2020 Rolv-Arild Braaten"
 __license__ = "Apache License 2.0"
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __url__ = "https://github.com/Rolv-Arild/python-ballchasing"
 __download_url__ = "https://pypi.python.org/pypi/python-ballchasing"
 __description__ = "A Python wrapper around the Ballchasing API"
 
-from ballchasing.api import Api  # noqa
-from ballchasing.enums import *
 from ballchasing import models
+from ballchasing.api import Api
+from ballchasing.enums import (
+    GroupSortBy,
+    MatchResult,
+    PatreonType,
+    PlayerIdentificationBy,
+    Playlist,
+    Rank,
+    ReplaySortBy,
+    ReplayStatus,
+    SortDir,
+    TeamIdentificationBy,
+    Visibility,
+)
 
+__all__ = [
+    "Api",
+    "GroupSortBy",
+    "MatchResult",
+    "PatreonType",
+    "PlayerIdentificationBy",
+    "Playlist",
+    "Rank",
+    "ReplaySortBy",
+    "ReplayStatus",
+    "SortDir",
+    "TeamIdentificationBy",
+    "Visibility",
+    "models",
+]

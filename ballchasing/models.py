@@ -1,12 +1,14 @@
-from pydantic import BaseModel, AnyHttpUrl, ConfigDict
 from datetime import datetime
+
+from pydantic import AnyHttpUrl, BaseModel, ConfigDict
+
 from ballchasing.enums import (
     PatreonType,
+    PlayerIdentificationBy,
     Playlist,
     Rank,
-    PlayerIdentificationBy,
-    TeamIdentificationBy,
     ReplayStatus,
+    TeamIdentificationBy,
     Visibility,
 )
 
@@ -214,16 +216,14 @@ class Replay(BallchasingModel):
 
     def __eq__(self, other):
         if not isinstance(other, Replay):
-            raise ValueError("Must be a ballchasing replay")
+            raise TypeError("Must be a ballchasing replay")
 
         # Same replay regardless of uploader
         if self.match_guid == other.match_guid:
             return True
 
         # Ballchasing ID fallback
-        if self.id == other.id:
-            return True
-        return False
+        return self.id == other.id
 
 
 class Ping(BallchasingModel):

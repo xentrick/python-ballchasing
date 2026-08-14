@@ -104,17 +104,29 @@ class PatreonType(StrEnum):
     LEGEND = "legend"
     ORG = "org"
 
-    def rate_limit(self) -> float:
+    def requests_per_second(self) -> float:
+        """Ballchasing's documented request ceiling for this tier.
+
+        These are the raw published limits. The client applies its own safety
+        margin on top (see ``Api.rate_limit_safety``) rather than baking a
+        fudge factor in here.
+        """
         match self:
             case PatreonType.REGULAR | PatreonType.GOLD:
-                return 1 / 2
+                return 2.0
             case PatreonType.DIAMOND:
-                return 1 / 4
+                return 4.0
             case PatreonType.CHAMPION:
-                return 1 / 8
+                return 8.0
             case PatreonType.GC | PatreonType.LEGEND | PatreonType.ORG:
-                # This should be 16 requests per second                return 1 / 8
-                # Ballchasing is lying to us...
-                return 1 / 12
+                return 16.0
             case _:
-                return 1 / 2
+                return 2.0
+
+    def rate_limit(self) -> float:
+        """Seconds between requests for this tier.
+
+        Deprecated: prefer :meth:`requests_per_second`. Retained because it is
+        part of the published API.
+        """
+        return 1 / self.requests_per_second()

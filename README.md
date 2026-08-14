@@ -50,6 +50,7 @@ The API is exposed via the `ballchasing.Api` class.
 Simple example:
 ```python
 import ballchasing
+
 api = ballchasing.Api("Your token here")
 
 # Get a specific replay

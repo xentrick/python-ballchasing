@@ -1,8 +1,6 @@
 class BallchasingException(Exception):
     """Base exception class"""
 
-    pass
-
 
 class BallchasingResponseError(BallchasingException):
     pass
@@ -26,9 +24,9 @@ class DuplicateReplay(BallchasingException):
             json = {}
 
         self.status: int = 409
-        self.id: str | None = json.get("id", None)
-        self.location: str | None = json.get("location", None)
-        self.error: str | None = json.get("error", None)
+        self.id: str | None = json.get("id")
+        self.location: str | None = json.get("location")
+        self.error: str | None = json.get("error")
         super().__init__(f"Duplicate Replay - {self.id} ({self.location})")
 
 

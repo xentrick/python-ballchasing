@@ -37,11 +37,41 @@ where = ["."]
 [tool.setuptools.package-data]
 ballchasing = ["*.tsv"]
 
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # import sorting
+    "UP",     # pyupgrade
+    "B",      # bugbear
+    "C4",     # comprehensions
+    "SIM",    # simplify
+    "TRY",    # exception handling
+    "RUF",    # ruff-specific
+    "PIE",    # misc lints
+    "DTZ",    # naive datetimes
+    "ASYNC",  # async correctness
+]
+ignore = [
+    # The formatter owns line breaks; long URLs and docstrings in the API
+    # reference would otherwise need awkward manual wrapping.
+    "E501",
+    # Ballchasing returns useful error payloads that belong in the message.
+    "TRY003",
+]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests/"]
-python_files = ["*.py"]
-env_files = [".env"]
+# Only real test modules; payloads.py and conftest.py are helpers.
+python_files = ["test_*.py"]
+# No env_files: the suite runs entirely against a loopback server and must
+# never pick up a production ballchasing key.
 
 [dependency-groups]
 dev = [
